@@ -1,0 +1,65 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+
+.profileCard {
+  background: linear-gradient(130deg, rgba(64, 158, 255, 0.1), rgba(103, 194, 58, 0.14));
+}
+
+.profileTop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profileTop h2 {
+  margin: 0;
+  color: #18324c;
+}
+
+.profileTop p {
+  margin: 4px 0 0;
+  color: #5b7187;
+}
+
+.progressWrap {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.progressWrap h4 {
+  margin: 0 0 6px;
+  color: #1f2f3f;
+}
+
+.progressWrap p {
+  margin: 0;
+  color: #5f6f7f;
+  font-size: 13px;
+}
+
+.quickActions {
+  background: #fff;
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(16, 37, 63, 0.08);
+}
+
+.links {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.links span {
+  color: #409eff;
+  background: rgba(64, 158, 255, 0.08);
+  border-radius: 999px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}

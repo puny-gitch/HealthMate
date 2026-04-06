@@ -1,0 +1,50 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+
+.inputArea {
+  border-radius: 14px;
+  background: #f6fbff;
+  padding: 12px;
+}
+
+.actionRow {
+  margin-top: 12px;
+}
+
+.resultCards {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.metric {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fbff;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.metric :global(.adm-input) {
+  width: 68px;
+  border: 1px solid #d4e7ff;
+  border-radius: 8px;
+  padding: 2px 8px;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tags :global(.adm-tag) {
+  padding: 2px 6px;
+}
+
+.tags :global(.adm-input) {
+  width: 88px;
+}

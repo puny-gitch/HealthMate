@@ -1,0 +1,10 @@
+:root {
+  --hm-primary: #409eff;
+  --hm-success: #67c23a;
+  --hm-bg: #f4f8fb;
+  --hm-card: #ffffff;
+  --hm-text-main: #203247;
+  --hm-text-secondary: #607286;
+  --hm-radius: 16px;
+  --hm-shadow: 0 8px 24px rgba(16, 37, 63, 0.08);
+}

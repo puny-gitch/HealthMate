@@ -1,0 +1,48 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+
+.cards {
+  display: grid;
+  gap: 12px;
+}
+
+.taskCard {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(16, 37, 63, 0.08);
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.taskCard h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.taskCard p {
+  margin: 6px 0 0;
+  color: #64778a;
+  font-size: 12px;
+}
+
+.done {
+  background: #f2f5f8;
+}
+
+.checkBtn {
+  transition: transform 0.16s ease;
+}
+
+.checkBtn:active {
+  transform: scale(0.92);
+}
+
+.summary {
+  margin: 0;
+  color: #233951;
+}

@@ -1,0 +1,35 @@
+.wrapper {
+  min-height: 180px;
+}
+
+.text {
+  margin: 0;
+  color: #24364b;
+  line-height: 1.9;
+  font-size: 15px;
+  white-space: pre-wrap;
+}
+
+.cursor {
+  display: inline-block;
+  margin-left: 2px;
+  animation: blink 0.8s infinite;
+  color: #409eff;
+}
+
+.loading {
+  margin-top: 10px;
+  color: #409eff;
+  font-size: 13px;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}

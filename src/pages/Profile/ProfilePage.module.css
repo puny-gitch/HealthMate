@@ -1,0 +1,42 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+
+.userInfo {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.userInfo h2 {
+  margin: 0;
+  color: #18324c;
+}
+
+.userInfo p {
+  margin: 6px 0 0;
+  color: #64788d;
+}
+
+.actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.actions span {
+  background: rgba(64, 158, 255, 0.1);
+  color: #3f8edd;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.disclaimer {
+  margin: 0;
+  text-align: center;
+  color: #6f7f8e;
+  font-size: 12px;
+}

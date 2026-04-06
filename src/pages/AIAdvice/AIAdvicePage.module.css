@@ -1,0 +1,54 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+
+.time {
+  color: #607284;
+  font-size: 12px;
+}
+
+.loadingRow {
+  display: inline-flex;
+  gap: 6px;
+  color: #409eff;
+  margin-bottom: 8px;
+}
+
+.warn {
+  margin-bottom: 8px;
+  color: #e6a23c;
+}
+
+.taskList {
+  display: grid;
+  gap: 10px;
+}
+
+.task {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f7fbff;
+}
+
+.task h4 {
+  margin: 0;
+  font-size: 15px;
+  color: #1f3348;
+}
+
+.task p {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #62758a;
+}
+
+.bottomBtns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}

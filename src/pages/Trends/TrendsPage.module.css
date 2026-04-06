@@ -1,0 +1,32 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+
+.filters {
+  display: grid;
+  gap: 10px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr;
+  gap: 12px;
+}
+
+.right {
+  display: grid;
+  gap: 12px;
+}
+
+.note {
+  margin: 0;
+  line-height: 1.8;
+  color: #273b53;
+}
+
+@media (max-width: 992px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

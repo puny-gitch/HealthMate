@@ -1,0 +1,19 @@
+.card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(16, 37, 63, 0.08);
+  padding: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #1f2d3d;
+}

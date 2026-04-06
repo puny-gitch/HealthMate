@@ -1,0 +1,27 @@
+.layout {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #eff8f8 0%, #f8fbff 38%, #f5f7fa 100%);
+}
+
+.main {
+  max-width: 1280px;
+  min-height: calc(100vh - 60px);
+  margin: 0 auto;
+  padding: 20px 18px 88px;
+}
+
+.tabbar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-top: 1px solid rgba(64, 158, 255, 0.12);
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+@media (min-width: 992px) {
+  .main {
+    padding: 28px 32px 98px;
+  }
+}
