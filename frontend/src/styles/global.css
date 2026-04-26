@@ -9,16 +9,92 @@ body,
   min-height: 100%;
 }
 
+html {
+  background:
+    radial-gradient(circle at top left, rgba(193, 235, 224, 0.9), transparent 28%),
+    radial-gradient(circle at top right, rgba(229, 244, 255, 0.92), transparent 30%),
+    linear-gradient(180deg, #f6fbf8 0%, #f7fafc 42%, #f9fbfd 100%);
+}
+
 body {
-  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   background: var(--hm-bg);
   color: var(--hm-text-main);
+  background-attachment: fixed;
 }
 
 a {
   color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(78, 158, 140, 0.18);
 }
 
 .adm-form-item-label-required-asterisk {
-  color: #f56c6c !important;
+  color: #f08f7a !important;
+}
+
+.adm-button.adm-button-primary {
+  --background-color: var(--hm-primary);
+  --border-color: var(--hm-primary);
+}
+
+.adm-button.adm-button-default {
+  --border-color: rgba(78, 158, 140, 0.18);
+}
+
+.adm-selector-item {
+  border-radius: 999px !important;
+}
+
+.adm-selector-item-active {
+  border-color: transparent !important;
+  background: linear-gradient(135deg, rgba(78, 158, 140, 0.14), rgba(143, 191, 204, 0.22)) !important;
+  color: var(--hm-primary-strong) !important;
+}
+
+.adm-list-default .adm-list-body,
+.adm-list-card .adm-list-body {
+  border-radius: var(--hm-radius) !important;
+  overflow: hidden;
+}
+
+.hm-page-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hm-text-muted);
+}
+
+.hm-soft-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid var(--hm-border);
+  box-shadow: var(--hm-shadow-soft);
+}
+
+.hm-section-title {
+  margin: 0;
+  font-size: 18px;
+  color: var(--hm-text-main);
+}
+
+.hm-section-copy {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--hm-text-secondary);
 }

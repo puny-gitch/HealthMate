@@ -1,9 +1,10 @@
-import { Button, DatePicker, Selector, Toast } from "antd-mobile";
 import { useMemo, useState } from "react";
+import { Button, Selector } from "antd-mobile";
 import AppCard from "../../components/common/AppCard";
 import EChartPanel from "../../components/charts/EChartPanel";
 import PageTransition from "../../components/common/PageTransition";
-import { buildPieOption, buildSleepSeries, buildTrendOption, buildWordCloudOption, monthDays, weekDays } from "../../utils/chartOptions";
+import { useAppStore } from "../../store/AppStore";
+import { buildPieOption, buildSleepSeries, buildTrendOption } from "../../utils/chartOptions";
 import styles from "./TrendsPage.module.css";
 
 const dimensionOptions = [
@@ -11,112 +12,109 @@ const dimensionOptions = [
   { label: "月", value: "month" },
 ];
 
-const trendTypeOptions = [
-  { label: "睡眠", value: "sleep" },
-  { label: "热量", value: "calorie" },
-  { label: "运动", value: "exercise" },
-];
-
 function TrendsPage() {
   const [dimension, setDimension] = useState("week");
-  const [trendType, setTrendType] = useState("sleep");
-  const [dateVisible, setDateVisible] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const {
+    state: { metrics },
+  } = useAppStore();
 
-  const categories = dimension === "week" ? weekDays : monthDays;
-  const trendData = useMemo(() => {
-    const count = categories.length;
-    const sleep = Array.from({ length: count }, (_, i) => Number((6 + Math.sin(i / 2) * 1.5 + 1).toFixed(1)));
-    const intake = Array.from({ length: count }, (_, i) => 1700 + ((i * 97) % 500) + i * 3);
-    const burn = Array.from({ length: count }, (_, i) => 1500 + ((i * 79) % 450) + i * 4);
-    const exercise = Array.from({ length: count }, (_, i) => 200 + ((i * 67) % 380));
-    return { sleep, intake, burn, exercise };
-  }, [categories.length]);
+  const currentMetrics = metrics[dimension];
+  const sleepAverage = useMemo(() => {
+    const total = currentMetrics.sleep.reduce((sum, value) => sum + value, 0);
+    return (total / currentMetrics.sleep.length).toFixed(1);
+  }, [currentMetrics]);
+  const intakeAverage = useMemo(() => {
+    const total = currentMetrics.intake.reduce((sum, value) => sum + value, 0);
+    return Math.round(total / currentMetrics.intake.length);
+  }, [currentMetrics]);
+  const burnAverage = useMemo(() => {
+    const total = currentMetrics.burn.reduce((sum, value) => sum + value, 0);
+    return Math.round(total / currentMetrics.burn.length);
+  }, [currentMetrics]);
 
-  const trendOption = useMemo(() => {
-    if (trendType === "sleep") {
-      return buildTrendOption({
-        title: `${dimension === "week" ? "近 7 天" : "近 30 天"}睡眠趋势`,
-        categories,
+  const sleepOption = useMemo(
+    () =>
+      buildTrendOption({
+        title: dimension === "week" ? "近 7 天睡眠趋势" : "近 30 天睡眠趋势",
+        categories: currentMetrics.categories,
         yName: "小时",
-        series: buildSleepSeries(trendData.sleep),
-      });
-    }
-    if (trendType === "calorie") {
-      return buildTrendOption({
-        title: "热量摄入/消耗趋势",
-        categories,
+        series: buildSleepSeries(currentMetrics.sleep),
+      }),
+    [dimension, currentMetrics],
+  );
+
+  const calorieOption = useMemo(
+    () =>
+      buildTrendOption({
+        title: "摄入 vs 消耗",
+        categories: currentMetrics.categories,
         yName: "kcal",
         series: [
-          { name: "摄入", type: "line", smooth: true, data: trendData.intake },
-          { name: "消耗", type: "line", smooth: true, data: trendData.burn },
+          { name: "摄入", type: "line", smooth: true, data: currentMetrics.intake },
+          { name: "消耗", type: "line", smooth: true, data: currentMetrics.burn },
         ],
-      });
-    }
-    return buildTrendOption({
-      title: "运动热量趋势",
-      categories,
-      yName: "kcal",
-      series: [{ name: "运动消耗", type: "line", smooth: true, data: trendData.exercise }],
-    });
-  }, [dimension, trendType, categories, trendData]);
+      }),
+    [currentMetrics],
+  );
 
-  const pieOption = buildPieOption([
-    { name: "睡眠不足", value: 3 },
-    { name: "高糖摄入", value: 3 },
-    { name: "运动达标", value: 5 },
-    { name: "作息稳定", value: 4 },
-  ]);
-
-  const wordCloudOption = buildWordCloudOption([
-    { name: "低糖饮食", value: 80 },
-    { name: "稳定作息", value: 68 },
-    { name: "快走", value: 54 },
-    { name: "深睡眠", value: 42 },
-    { name: "减压", value: 34 },
-    { name: "补水", value: 30 },
-  ]);
+  const pieOption = useMemo(() => buildPieOption(currentMetrics.tags), [currentMetrics.tags]);
 
   return (
     <PageTransition>
       <div className={styles.page}>
-        <AppCard title="健康数据可视化趋势">
-          <div className={styles.filters}>
-            <Selector options={dimensionOptions} value={[dimension]} onChange={(v) => setDimension(v[0])} columns={2} />
-            <Selector options={trendTypeOptions} value={[trendType]} onChange={(v) => setTrendType(v[0])} columns={3} />
-            <Button size="small" onClick={() => setDateVisible(true)}>
-              日期筛选
-            </Button>
-            <Button size="small" color="primary" fill="outline" onClick={() => Toast.show({ content: "数据导出接口待接入" })}>
-              数据导出
-            </Button>
+        <AppCard className={styles.heroCard}>
+          <div className={styles.heroTop}>
+            <div>
+              <span className="hm-page-eyebrow">数据复盘</span>
+              <h1>别把数据当成绩单，把它当提醒就够了</h1>
+              <p>{currentMetrics.insight}</p>
+            </div>
+            <Selector options={dimensionOptions} value={[dimension]} onChange={(value) => setDimension(value[0])} columns={2} />
+          </div>
+          <div className={styles.summaryGrid}>
+            <div className={styles.summaryCard}>
+              <strong>{sleepAverage}h</strong>
+              <span>平均睡眠</span>
+            </div>
+            <div className={styles.summaryCard}>
+              <strong>{intakeAverage} kcal</strong>
+              <span>平均摄入</span>
+            </div>
+            <div className={styles.summaryCard}>
+              <strong>{burnAverage} kcal</strong>
+              <span>平均消耗</span>
+            </div>
           </div>
         </AppCard>
 
         <section className={styles.grid}>
-          <AppCard className={styles.left}>
-            <EChartPanel option={trendOption} height={360} />
+          <AppCard>
+            <EChartPanel option={sleepOption} height={320} />
           </AppCard>
-          <div className={styles.right}>
-            <AppCard title="健康标签分布">
-              <EChartPanel option={pieOption} height={240} />
-            </AppCard>
-            <AppCard title="健康关键词词云">
-              <EChartPanel option={wordCloudOption} height={220} />
-            </AppCard>
-            <AppCard title="统计结论">
-              <p className={styles.note}>近 7 天你有 3 天摄入高糖，建议减少甜食并用坚果替换高糖零食。</p>
-            </AppCard>
-          </div>
+          <AppCard>
+            <EChartPanel option={calorieOption} height={320} />
+          </AppCard>
         </section>
 
-        <DatePicker
-          visible={dateVisible}
-          value={selectedDate}
-          onClose={() => setDateVisible(false)}
-          onConfirm={(date) => setSelectedDate(date)}
-          title="选择日期"
-        />
+        <section className={styles.bottomGrid}>
+          <AppCard title="标签分布">
+            <EChartPanel option={pieOption} height={240} />
+          </AppCard>
+
+          <AppCard title="温柔提醒">
+            <div className={styles.noticeList}>
+              {currentMetrics.notices.map((notice) => (
+                <article key={notice} className={styles.noticeItem}>
+                  <strong>提醒</strong>
+                  <p>{notice}</p>
+                </article>
+              ))}
+            </div>
+            <Button fill="outline" size="small">
+              导出数据
+            </Button>
+          </AppCard>
+        </section>
       </div>
     </PageTransition>
   );

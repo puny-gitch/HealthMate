@@ -1,50 +1,148 @@
 .page {
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
-.inputArea {
-  border-radius: 14px;
-  background: #f6fbff;
-  padding: 12px;
+.heroCard {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(223, 242, 237, 0.78));
 }
 
-.actionRow {
-  margin-top: 12px;
+.title {
+  margin: 10px 0 0;
+  font-size: clamp(28px, 4vw, 38px);
+  line-height: 1.15;
+  letter-spacing: -0.04em;
 }
 
-.resultCards {
-  margin-top: 14px;
-  display: grid;
+.copy {
+  margin: 14px 0 0;
+  max-width: 720px;
+  line-height: 1.85;
+  color: var(--hm-text-secondary);
+}
+
+.examples {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
-.metric {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #f8fbff;
-  border-radius: 12px;
-  padding: 10px;
+.exampleChip {
+  border: 1px solid rgba(78, 158, 140, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--hm-primary-strong);
+  padding: 10px 14px;
+  cursor: pointer;
+  box-shadow: var(--hm-shadow-soft);
 }
 
-.metric :global(.adm-input) {
-  width: 68px;
-  border: 1px solid #d4e7ff;
-  border-radius: 8px;
-  padding: 2px 8px;
+.inputArea {
+  border-radius: 18px;
+  background: rgba(247, 251, 249, 0.9);
+  padding: 14px;
+  border: 1px solid rgba(78, 158, 140, 0.1);
+}
+
+.actionRow {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.placeholder,
+.parsing {
+  min-height: 120px;
+  border-radius: 18px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(247, 251, 249, 0.72);
+  color: var(--hm-text-secondary);
+  text-align: center;
+}
+
+.placeholder strong {
+  color: var(--hm-text-main);
+}
+
+.resultCards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metricCard,
+.noteCard {
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(78, 158, 140, 0.1);
+}
+
+.metricCard span {
+  display: block;
+  color: var(--hm-text-muted);
+  font-size: 12px;
+}
+
+.metricValue {
+  margin-top: 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.metricValue :global(.adm-input) {
+  padding: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--hm-text-main);
+}
+
+.metricValue em {
+  font-style: normal;
+  color: var(--hm-text-secondary);
+}
+
+.noteCard {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, rgba(255, 242, 223, 0.78), rgba(255, 255, 255, 0.88));
+}
+
+.noteCard strong {
+  display: block;
+  font-size: 15px;
+}
+
+.noteCard p {
+  margin: 8px 0 0;
+  line-height: 1.8;
+  color: var(--hm-text-secondary);
 }
 
 .tags {
+  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
 .tags :global(.adm-tag) {
-  padding: 2px 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
 }
 
 .tags :global(.adm-input) {
-  width: 88px;
+  width: 92px;
+}
+
+@media (max-width: 760px) {
+  .resultCards {
+    grid-template-columns: 1fr;
+  }
 }

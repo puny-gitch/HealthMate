@@ -1,10 +1,22 @@
 :root {
-  --hm-primary: #409eff;
-  --hm-success: #67c23a;
-  --hm-bg: #f4f8fb;
-  --hm-card: #ffffff;
-  --hm-text-main: #203247;
-  --hm-text-secondary: #607286;
-  --hm-radius: 16px;
-  --hm-shadow: 0 8px 24px rgba(16, 37, 63, 0.08);
+  --hm-primary: #4e9e8c;
+  --hm-primary-strong: #2f7465;
+  --hm-primary-soft: #dff2ed;
+  --hm-secondary: #8fbfcc;
+  --hm-accent: #ffb46d;
+  --hm-accent-soft: #fff2df;
+  --hm-danger-soft: #ffe8e4;
+  --hm-bg: #f6fbf8;
+  --hm-bg-elevated: rgba(255, 255, 255, 0.82);
+  --hm-card: rgba(255, 255, 255, 0.92);
+  --hm-border: rgba(67, 114, 103, 0.12);
+  --hm-text-main: #1f3b35;
+  --hm-text-secondary: #5d776f;
+  --hm-text-muted: #83a098;
+  --hm-radius-sm: 14px;
+  --hm-radius: 20px;
+  --hm-radius-lg: 28px;
+  --hm-shadow: 0 18px 40px rgba(41, 82, 72, 0.08);
+  --hm-shadow-soft: 0 10px 24px rgba(31, 59, 53, 0.06);
+  --hm-content-width: 1240px;
 }

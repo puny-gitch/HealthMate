@@ -1,28 +1,84 @@
 .page {
   display: grid;
+  gap: 18px;
+}
+
+.heroCard {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(223, 242, 237, 0.72));
+}
+
+.heroTop {
+  display: flex;
+  justify-content: space-between;
   gap: 16px;
+  align-items: flex-start;
+}
+
+.botInfo {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.botInfo h1 {
+  margin: 6px 0 0;
+  font-size: clamp(26px, 4vw, 34px);
+  line-height: 1.14;
+  letter-spacing: -0.04em;
+}
+
+.botInfo p {
+  margin: 10px 0 0;
+  color: var(--hm-text-secondary);
+  line-height: 1.8;
 }
 
 .time {
-  color: #607284;
+  color: var(--hm-text-secondary);
   font-size: 12px;
 }
 
 .loadingRow {
   display: inline-flex;
   gap: 6px;
-  color: #409eff;
+  color: var(--hm-primary);
   margin-bottom: 8px;
 }
 
 .warn {
   margin-bottom: 8px;
-  color: #e6a23c;
+  color: #d08a50;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid var(--hm-border);
+  padding: 10px 12px;
+  color: var(--hm-text-secondary);
+  font-size: 13px;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hm-primary);
+}
+
+.actionBar {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .taskList {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .task {
@@ -30,25 +86,50 @@
   justify-content: space-between;
   gap: 10px;
   align-items: center;
-  padding: 12px;
-  border-radius: 12px;
-  background: #f7fbff;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(78, 158, 140, 0.12);
+  background: rgba(247, 251, 249, 0.82);
 }
 
 .task h4 {
   margin: 0;
   font-size: 15px;
-  color: #1f3348;
+  color: var(--hm-text-main);
 }
 
 .task p {
   margin: 6px 0 0;
   font-size: 12px;
-  color: #62758a;
+  color: var(--hm-text-secondary);
 }
 
-.bottomBtns {
+.historyList {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.historyItem {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(78, 158, 140, 0.1);
+}
+
+.historyItem strong {
+  color: var(--hm-primary-strong);
+}
+
+.historyItem p {
+  margin: 8px 0 0;
+  line-height: 1.8;
+  color: var(--hm-text-secondary);
+}
+
+@media (max-width: 720px) {
+  .heroTop,
+  .task {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

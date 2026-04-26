@@ -1,42 +1,103 @@
 .page {
   display: grid;
-  gap: 16px;
+  gap: 18px;
+}
+
+.heroCard {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.96), rgba(233, 244, 250, 0.74));
 }
 
 .userInfo {
   display: flex;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
 }
 
-.userInfo h2 {
-  margin: 0;
-  color: #18324c;
+.userInfo h1 {
+  margin: 8px 0 0;
+  font-size: clamp(28px, 4vw, 36px);
+  line-height: 1.12;
+  letter-spacing: -0.04em;
 }
 
 .userInfo p {
-  margin: 6px 0 0;
-  color: #64788d;
+  margin: 10px 0 0;
+  color: var(--hm-text-secondary);
+  line-height: 1.8;
+}
+
+.metrics {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metrics div {
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--hm-border);
+}
+
+.metrics strong {
+  display: block;
+  font-size: 24px;
+  color: var(--hm-text-main);
+}
+
+.metrics span {
+  display: block;
+  margin-top: 8px;
+  color: var(--hm-text-secondary);
+}
+
+.planGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.planCard {
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(247, 251, 249, 0.84);
+  border: 1px solid rgba(78, 158, 140, 0.1);
+}
+
+.planCard strong {
+  display: block;
+  margin-top: 10px;
+  font-size: 20px;
+}
+
+.planCard p {
+  margin: 10px 0 0;
+  color: var(--hm-text-secondary);
+  line-height: 1.8;
 }
 
 .actions {
-  margin-top: 12px;
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
-}
-
-.actions span {
-  background: rgba(64, 158, 255, 0.1);
-  color: #3f8edd;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 13px;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 .disclaimer {
   margin: 0;
   text-align: center;
-  color: #6f7f8e;
+  color: var(--hm-text-secondary);
   font-size: 12px;
+}
+
+@media (max-width: 860px) {
+  .metrics,
+  .planGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .userInfo {
+    align-items: flex-start;
+  }
 }

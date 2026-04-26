@@ -1,6 +1,64 @@
 .page {
   display: grid;
+  gap: 18px;
+}
+
+.heroCard {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.96), rgba(223, 242, 237, 0.76));
+}
+
+.heroTop {
+  display: flex;
+  justify-content: space-between;
   gap: 16px;
+  margin-top: 10px;
+  margin-bottom: 18px;
+}
+
+.heroTop h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 36px);
+  line-height: 1.14;
+  letter-spacing: -0.04em;
+}
+
+.heroTop p {
+  margin: 12px 0 0;
+  color: var(--hm-text-secondary);
+  line-height: 1.8;
+}
+
+.streakCard {
+  min-width: 180px;
+  padding: 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--hm-border);
+  box-shadow: var(--hm-shadow-soft);
+}
+
+.streakCard strong {
+  display: block;
+  font-size: 42px;
+  color: var(--hm-primary-strong);
+  letter-spacing: -0.05em;
+}
+
+.streakCard span,
+.streakCard em {
+  display: block;
+  font-style: normal;
+}
+
+.streakCard span {
+  margin-top: 8px;
+  color: var(--hm-text-main);
+}
+
+.streakCard em {
+  margin-top: 6px;
+  color: var(--hm-text-secondary);
+  font-size: 13px;
 }
 
 .cards {
@@ -9,40 +67,83 @@
 }
 
 .taskCard {
-  background: #fff;
-  border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(16, 37, 63, 0.08);
-  padding: 14px;
+  background: rgba(255, 255, 255, 0.86);
+  border-radius: 20px;
+  border: 1px solid rgba(78, 158, 140, 0.12);
+  box-shadow: var(--hm-shadow);
+  padding: 16px;
   display: flex;
   justify-content: space-between;
-  gap: 10px;
+  gap: 16px;
   align-items: center;
 }
 
+.taskBody {
+  flex: 1;
+}
+
+.taskHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--hm-text-muted);
+  font-size: 12px;
+}
+
+.category {
+  color: var(--hm-primary-strong);
+  font-weight: 600;
+}
+
 .taskCard h3 {
-  margin: 0;
-  font-size: 15px;
+  margin: 10px 0 0;
+  font-size: 16px;
 }
 
 .taskCard p {
-  margin: 6px 0 0;
-  color: #64778a;
+  margin: 8px 0 0;
+  color: var(--hm-text-secondary);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.progressRow {
+  margin: 12px 0 10px;
+  display: flex;
+  justify-content: space-between;
+  color: var(--hm-text-muted);
   font-size: 12px;
 }
 
 .done {
-  background: #f2f5f8;
+  background: linear-gradient(135deg, rgba(223, 242, 237, 0.82), rgba(255, 255, 255, 0.94));
+  box-shadow: 0 14px 30px rgba(78, 158, 140, 0.12);
 }
 
 .checkBtn {
-  transition: transform 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.2s ease;
 }
 
 .checkBtn:active {
-  transform: scale(0.92);
+  transform: scale(0.94);
 }
 
 .summary {
   margin: 0;
-  color: #233951;
+  line-height: 1.8;
+  color: var(--hm-text-secondary);
+}
+
+@media (max-width: 760px) {
+  .heroTop,
+  .taskCard {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .streakCard {
+    width: 100%;
+  }
 }

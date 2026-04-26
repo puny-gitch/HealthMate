@@ -1,11 +1,11 @@
 .wrapper {
-  min-height: 180px;
+  min-height: 176px;
 }
 
 .text {
   margin: 0;
-  color: #24364b;
-  line-height: 1.9;
+  color: var(--hm-text-main);
+  line-height: 1.95;
   font-size: 15px;
   white-space: pre-wrap;
 }
@@ -14,12 +14,12 @@
   display: inline-block;
   margin-left: 2px;
   animation: blink 0.8s infinite;
-  color: #409eff;
+  color: var(--hm-primary);
 }
 
 .loading {
   margin-top: 10px;
-  color: #409eff;
+  color: var(--hm-primary);
   font-size: 13px;
 }
 

@@ -13,8 +13,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <ConfigProvider
       locale={zhCN}
       theme={{
-        colorPrimary: "#409EFF",
-        colorSuccess: "#67C23A",
+        colorPrimary: "#4e9e8c",
+        colorSuccess: "#69b98b",
       }}
     >
       <BrowserRouter>

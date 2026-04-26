@@ -2,21 +2,21 @@ export const weekDays = ["周一", "周二", "周三", "周四", "周五", "周�
 export const monthDays = Array.from({ length: 30 }, (_, i) => `${i + 1}日`);
 
 const axisStyle = {
-  axisLine: { lineStyle: { color: "#c8d3dc" } },
-  axisLabel: { color: "#5b6776" },
-  splitLine: { lineStyle: { color: "rgba(64,158,255,0.08)" } },
+  axisLine: { lineStyle: { color: "rgba(104, 143, 133, 0.18)" } },
+  axisLabel: { color: "#5d776f" },
+  splitLine: { lineStyle: { color: "rgba(78, 158, 140, 0.08)" } },
 };
 
 export function buildTrendOption({ title, categories, series, yName = "" }) {
   return {
-    color: ["#409EFF", "#67C23A", "#f56c6c"],
+    color: ["#4e9e8c", "#8fbfcc", "#ffb46d"],
     tooltip: { trigger: "axis" },
     grid: { left: 16, right: 16, top: 52, bottom: 18, containLabel: true },
     title: {
       text: title,
       left: 10,
       top: 10,
-      textStyle: { fontSize: 14, color: "#1f2d3d", fontWeight: 600 },
+      textStyle: { fontSize: 14, color: "#1f3b35", fontWeight: 600 },
     },
     xAxis: { type: "category", data: categories, ...axisStyle },
     yAxis: { type: "value", name: yName, ...axisStyle },
@@ -34,11 +34,11 @@ export function buildSleepSeries(data) {
       symbolSize: 9,
       lineStyle: { width: 3 },
       itemStyle: {
-        color: (params) => (params.value < 6 ? "#f56c6c" : "#409EFF"),
+        color: (params) => (params.value < 6 ? "#ff9f86" : "#4e9e8c"),
       },
       markLine: {
         silent: true,
-        lineStyle: { color: "#f56c6c", type: "dashed" },
+        lineStyle: { color: "#ffb46d", type: "dashed" },
         data: [{ yAxis: 6, name: "低于 6 小时预警" }],
       },
     },
@@ -54,6 +54,7 @@ export function buildPieOption(data) {
         name: "健康标签",
         type: "pie",
         radius: ["45%", "72%"],
+        color: ["#4e9e8c", "#8fbfcc", "#ffb46d", "#b5d892", "#6f9bff"],
         itemStyle: {
           borderColor: "#fff",
           borderWidth: 2,
@@ -77,7 +78,7 @@ export function buildWordCloudOption(data) {
         rotationRange: [-45, 45],
         gridSize: 8,
         textStyle: {
-          color: () => ["#409EFF", "#67C23A", "#7cb7ff", "#2c7be5", "#3b9f7d"][Math.floor(Math.random() * 5)],
+          color: () => ["#4e9e8c", "#76b4a6", "#8fbfcc", "#ffb46d", "#3f7064"][Math.floor(Math.random() * 5)],
         },
         data,
       },

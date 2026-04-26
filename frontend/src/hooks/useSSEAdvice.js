@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const mockText =
-  "今天建议你优先修复睡眠节律，建议 23:30 前入睡；白天增加 30 分钟中等强度步行；下午茶替换为无糖酸奶与坚果，减少高糖波动。";
+  "你最近其实已经在慢慢变稳了。今晚先把入睡时间往前挪一点点，再给自己留出 20 分钟轻松走动的时间；饮食上不用苛刻，只要把下午高糖零食换成更轻一点的选择，就已经是很好的进步。";
 
 export function useSSEAdvice(url) {
   const [text, setText] = useState("");

@@ -1,65 +1,249 @@
 .page {
   display: grid;
+  gap: 18px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.4fr 0.9fr;
   gap: 16px;
+  align-items: stretch;
 }
 
-.profileCard {
-  background: linear-gradient(130deg, rgba(64, 158, 255, 0.1), rgba(103, 194, 58, 0.14));
+.heroIntro {
+  padding: 8px 4px 8px 2px;
 }
 
-.profileTop {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.heroIntro h1 {
+  margin: 10px 0 0;
+  font-size: clamp(30px, 5vw, 42px);
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+  color: var(--hm-text-main);
 }
 
-.profileTop h2 {
-  margin: 0;
-  color: #18324c;
+.heroIntro h1 span {
+  display: block;
+  margin-top: 10px;
+  font-size: clamp(16px, 2.8vw, 20px);
+  font-weight: 500;
+  color: var(--hm-text-secondary);
 }
 
-.profileTop p {
-  margin: 4px 0 0;
-  color: #5b7187;
+.heroIntro p {
+  max-width: 680px;
+  margin: 16px 0 0;
+  line-height: 1.85;
+  color: var(--hm-text-secondary);
 }
 
-.progressWrap {
-  margin-top: 14px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.progressWrap h4 {
-  margin: 0 0 6px;
-  color: #1f2f3f;
-}
-
-.progressWrap p {
-  margin: 0;
-  color: #5f6f7f;
-  font-size: 13px;
-}
-
-.quickActions {
-  background: #fff;
-  border-radius: 18px;
-  padding: 16px;
-  box-shadow: 0 8px 24px rgba(16, 37, 63, 0.08);
-}
-
-.links {
-  margin-top: 12px;
+.heroMeta {
+  margin-top: 18px;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.links span {
-  color: #409eff;
-  background: rgba(64, 158, 255, 0.08);
-  border-radius: 999px;
-  padding: 6px 10px;
-  cursor: pointer;
+.scoreCard {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(223, 242, 237, 0.92));
+}
+
+.scoreHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.scoreHeader strong {
+  display: block;
+  font-size: 16px;
+}
+
+.scoreHeader span {
+  display: block;
+  margin-top: 4px;
+  color: var(--hm-text-secondary);
   font-size: 13px;
+}
+
+.scoreValue {
+  margin: 22px 0 16px;
+  font-size: 54px;
+  font-weight: 700;
+  letter-spacing: -0.06em;
+  color: var(--hm-primary-strong);
+}
+
+.scoreFoot {
+  margin-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  color: var(--hm-text-secondary);
+  font-size: 13px;
+}
+
+.adviceCard {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.96), rgba(255, 242, 223, 0.86));
+}
+
+.sectionHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.adviceText {
+  margin: 14px 0 0;
+  font-size: 16px;
+  line-height: 1.95;
+  color: var(--hm-text-main);
+}
+
+.adviceFooter {
+  margin-top: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  color: var(--hm-text-secondary);
+  font-size: 12px;
+}
+
+.linkButton {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--hm-primary-strong);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.taskList {
+  display: grid;
+  gap: 12px;
+}
+
+.taskItem {
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(78, 158, 140, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  transition:
+    transform 0.18s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.taskItem:active {
+  transform: scale(0.992);
+}
+
+.taskTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.taskTop h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.taskTop p {
+  margin: 6px 0 0;
+  color: var(--hm-text-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.taskMeta {
+  margin: 12px 0 10px;
+  display: flex;
+  justify-content: space-between;
+  color: var(--hm-text-muted);
+  font-size: 12px;
+}
+
+.done {
+  background: linear-gradient(135deg, rgba(223, 242, 237, 0.82), rgba(255, 255, 255, 0.92));
+  box-shadow: 0 14px 30px rgba(78, 158, 140, 0.1);
+}
+
+.quickGrid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 16px;
+}
+
+.quickCard,
+.entryCard {
+  min-height: 100%;
+}
+
+.quickButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.entryText {
+  margin: 16px 0;
+  line-height: 1.85;
+  color: var(--hm-text-secondary);
+}
+
+.trendGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.highlightCard strong {
+  display: block;
+  margin-top: 12px;
+  font-size: 28px;
+  letter-spacing: -0.04em;
+  color: var(--hm-text-main);
+}
+
+.highlightCard em {
+  display: block;
+  margin-top: 8px;
+  font-style: normal;
+  color: var(--hm-primary-strong);
+}
+
+.highlightCard p {
+  margin: 10px 0 0;
+  color: var(--hm-text-secondary);
+  line-height: 1.7;
+}
+
+@media (max-width: 960px) {
+  .hero,
+  .quickGrid,
+  .trendGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .scoreValue {
+    font-size: 46px;
+  }
+
+  .adviceFooter,
+  .scoreFoot,
+  .taskTop {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .heroIntro h1 {
+    font-size: 28px;
+  }
 }
