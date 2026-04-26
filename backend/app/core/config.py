@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
 
     ai_mode: str = "mock"
+    llm_api_base: str | None = None
+    llm_api_key: str | None = None
+    llm_model: str = "deepseek-chat"
+    llm_timeout_seconds: float = 5.0
+    redis_url: str | None = None
+    cache_ttl_seconds: int = 604800
 
     db_host: str = "127.0.0.1"
     db_port: int = 3306
@@ -33,4 +39,3 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-

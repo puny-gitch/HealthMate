@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, Text, String
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -8,6 +8,7 @@ from app.db.base import Base
 
 class DailyTask(Base):
     __tablename__ = "t_daily_task"
+    __table_args__ = (UniqueConstraint("user_id", "task_date", "task_content", name="uq_daily_task_user_date_content"),)
 
     task_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("t_user.user_id"), nullable=False, index=True)
@@ -19,4 +20,3 @@ class DailyTask(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
-

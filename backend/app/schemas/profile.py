@@ -1,11 +1,11 @@
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 
 class ProfileUpsertReq(BaseModel):
     gender: int | None = Field(default=None, ge=0, le=2)
     height: float | None = Field(default=None, gt=0, le=260)
     weight: float | None = Field(default=None, gt=0, le=400)
-    healthGoal: str = Field(min_length=1, max_length=50)
+    healthGoal: str = Field(min_length=1, max_length=50, validation_alias=AliasChoices("healthGoal", "goal"))
     medicalHistory: str | None = Field(default=None, max_length=255)
 
 
@@ -17,3 +17,6 @@ class ProfileResp(BaseModel):
     healthGoal: str
     medicalHistory: str | None = None
 
+
+class GoalChangeReq(BaseModel):
+    newGoal: str = Field(min_length=1, max_length=50, validation_alias=AliasChoices("newGoal", "healthGoal", "goal"))

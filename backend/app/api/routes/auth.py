@@ -10,6 +10,7 @@ from app.repositories.user_repository import UserRepository
 from app.schemas.auth import AuthLoginReq, AuthRegisterReq
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+legacy_router = APIRouter(prefix="/user", tags=["user-compat"])
 user_repository = UserRepository()
 
 
@@ -37,3 +38,12 @@ def login(payload: AuthLoginReq, db: Session = Depends(get_db)):
         "登录成功",
     )
 
+
+@legacy_router.post("/register")
+def legacy_register(payload: AuthRegisterReq, db: Session = Depends(get_db)):
+    return register(payload, db)
+
+
+@legacy_router.post("/login")
+def legacy_login(payload: AuthLoginReq, db: Session = Depends(get_db)):
+    return login(payload, db)

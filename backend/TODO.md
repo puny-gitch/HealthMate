@@ -3,6 +3,14 @@
 > 用途：给后续对话快速恢复上下文。  
 > 当前结论：`backend` 已从 0 搭好 FastAPI + MySQL + JWT 的 V1 骨架，核心接口可用，但仍有若干联调与完善工作未完成。
 
+## 2026-04-26 补充进展
+
+- 已落地 SSE query token 鉴权：`/api/advice/stream?token=...` 与 `/api/health/daily-report?token=...` 均可用于浏览器原生 `EventSource`。
+- 已补齐一批设计文档兼容路径：`/api/user/register`、`/api/user/login`、`/api/user/profile/create`、`/api/user/profile/update`、`/api/user/goal/change`、`/api/health/record/*`、`/api/visual/*`、`/api/task/today`。
+- 已实现健康记录按 `user_id + record_date` 幂等更新、同日任务按内容去重，避免重复生成任务。
+- 已把 `LLMAdviceProvider` 从占位改为 OpenAI-compatible 调用；未配置或调用失败时自动走 Mock 兜底。
+- 已增强 CSV 导出：支持 `startDate` / `endDate`，并加入 UTF-8 BOM 便于 Excel 打开中文。
+
 ---
 
 ## 1. 本次已完成内容（Done）
@@ -102,7 +110,7 @@
 - 文档中有些接口与前端调用不一致，本次优先按前端路径实现：
   - 文档 `POST /api/user/profile`，当前实现 `POST /api/profile`
   - 文档 `GET /api/health/trend`，当前实现 `GET /api/health/trends`
-  - 文档 `GET /api/health/daily-report`，当前由 `GET /api/advice/stream` 承担
+  - 文档 `GET /api/health/daily-report`，当前已作为 `GET /api/advice/stream` 的兼容别名实现
 
 ### 2.2 SSE 鉴权现状
 - `GET /api/advice/stream` 目前使用 `Depends(get_current_user_id)`，要求带 Bearer token。
@@ -225,4 +233,3 @@
 2. 再把前端 `Auth + ProfileSetup + DataEntry + Dashboard` 四条链路接上真实接口。
 3. 跑通主流程后，补 API 自动化测试与 Alembic。
 4. 最后再接真实 LLM 与 Redis/Celery。
-

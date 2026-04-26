@@ -7,9 +7,10 @@ from app.api.deps import get_current_user
 from app.core.response import api_success
 from app.db.session import get_db
 from app.repositories.user_repository import UserRepository
-from app.schemas.profile import ProfileUpsertReq
+from app.schemas.profile import GoalChangeReq, ProfileUpsertReq
 
 router = APIRouter(prefix="/profile", tags=["profile"])
+legacy_router = APIRouter(prefix="/user", tags=["user-compat"])
 user_repository = UserRepository()
 
 
@@ -47,3 +48,39 @@ def update_profile(
 ):
     return save_profile(payload, db, current_user)
 
+
+@legacy_router.post("/profile/create")
+def legacy_create_profile(
+    payload: ProfileUpsertReq,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return save_profile(payload, db, current_user)
+
+
+@legacy_router.put("/profile/update")
+def legacy_update_profile(
+    payload: ProfileUpsertReq,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return save_profile(payload, db, current_user)
+
+
+@legacy_router.put("/goal/change")
+def legacy_change_goal(
+    payload: GoalChangeReq,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    current_user.health_goal = payload.newGoal
+    current_user.health_goal_version = datetime.utcnow()
+    user_repository.save(db, current_user)
+    return api_success(
+        {
+            "userId": current_user.user_id,
+            "healthGoal": current_user.health_goal,
+            "healthGoalVersion": current_user.health_goal_version.isoformat(),
+        },
+        "目标修改成功",
+    )

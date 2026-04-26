@@ -38,19 +38,32 @@ uvicorn app.main:app --reload --port 8080
 - `GET /api/health/dashboard`
 - `GET /api/health/trends`
 - `GET /api/health/export`
+- `GET /api/health/summary/latest`
+- `POST /api/health/summary/generate`
 - `GET /api/advice/history`
 - `GET /api/advice/stream` (SSE)
 - `POST /api/task/check`
 - `GET /api/task/history`
+- `POST /api/admin/jobs/archive-tasks`
+- `POST /api/admin/jobs/weekly-summary`
+- `POST /api/admin/jobs/pre-generate-advice`
+- `POST /api/admin/jobs/run-daily`
+- Compatibility aliases for the design docs:
+  - `/api/user/register`, `/api/user/login`, `/api/user/profile/create`, `/api/user/profile/update`, `/api/user/goal/change`
+  - `/api/health/record/natural`, `/api/health/record/confirm`, `/api/health/record/manual`, `/api/health/record/recent`, `/api/health/daily-report`
+  - `/api/visual/dashboard`, `/api/visual/trend`, `/api/visual/tags`
+  - `/api/task/today`
 
 ## Notes
 
 - V1 uses mock AI advice provider by default (`AI_MODE=mock`).
-- Redis / Celery / real LLM integration are reserved for phase 2.
+- `AI_MODE=llm` uses an OpenAI-compatible chat completions endpoint when `LLM_API_BASE` and `LLM_API_KEY` are configured; otherwise it falls back to mock advice.
+- `REDIS_URL` is optional. If it is unset or Redis is unavailable, the backend falls back to in-process memory cache for daily advice.
+- Celery is not required yet. The backend exposes protected admin job endpoints that can be called manually or wired to Celery/APScheduler later.
 - Interface mapping comments:
   - Doc `POST /api/user/profile` -> implemented as `POST /api/profile` (matches current frontend).
   - Doc `GET /api/health/trend` -> implemented as `GET /api/health/trends` (matches current frontend).
-  - Doc `GET /api/health/daily-report` -> phase-2 alias to `GET /api/advice/stream`.
+  - Doc `GET /api/health/daily-report` -> implemented as an alias of `GET /api/advice/stream`.
 
 
 

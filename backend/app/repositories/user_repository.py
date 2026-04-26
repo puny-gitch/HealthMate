@@ -11,6 +11,9 @@ class UserRepository:
     def get_by_id(self, db: Session, user_id: int) -> User | None:
         return db.scalar(select(User).where(User.user_id == user_id))
 
+    def list_all(self, db: Session) -> list[User]:
+        return list(db.scalars(select(User).order_by(User.user_id.asc())).all())
+
     def create(self, db: Session, user: User) -> User:
         db.add(user)
         db.commit()
@@ -22,4 +25,3 @@ class UserRepository:
         db.commit()
         db.refresh(user)
         return user
-

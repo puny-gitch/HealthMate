@@ -65,3 +65,28 @@ def task_history(
         }
     )
 
+
+@router.get("/today")
+def task_today(
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    tasks = task_repository.list_by_date(db, user_id, date.today())
+    completion = task_service.completion_rate(tasks)
+    return api_success(
+        {
+            "tasks": [
+                {
+                    "taskId": t.task_id,
+                    "taskDate": t.task_date.isoformat(),
+                    "taskContent": t.task_content,
+                    "status": t.status,
+                    "aiReason": t.ai_reason,
+                    "updatedAt": t.updated_at.isoformat(),
+                }
+                for t in tasks
+            ],
+            "completionRate": completion,
+        },
+        "查询成功",
+    )
