@@ -1,8 +1,11 @@
 import { Avatar, Button, List, Toast } from "antd-mobile";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AppCard from "../../components/common/AppCard";
 import PageTransition from "../../components/common/PageTransition";
 import { useAppStore } from "../../store/AppStore";
+import { adviceApi, healthApi, profileApi } from "../../services/api";
+import { mapHealthRecord, mapProfile } from "../../utils/backendMappers";
 import styles from "./ProfilePage.module.css";
 
 function ProfilePage() {
@@ -11,6 +14,31 @@ function ProfilePage() {
     state: { user, recentEntries, recommendations },
     actions,
   } = useAppStore();
+
+  useEffect(() => {
+    let active = true;
+    Promise.allSettled([profileApi.getProfile(), healthApi.getRecentRecords({ days: 30 }), adviceApi.history()]).then(
+      ([profileResult, recordsResult, adviceResult]) => {
+        if (!active) return;
+        if (profileResult.status === "fulfilled") actions.updateUser(mapProfile(profileResult.value));
+        if (recordsResult.status === "fulfilled") {
+          actions.setRecentEntries((recordsResult.value.records || []).map(mapHealthRecord));
+        }
+        if (adviceResult.status === "fulfilled") {
+          actions.setRecommendations(
+            (adviceResult.value || []).map((item) => ({
+              content: item.adviceText,
+              time: item.createdAt,
+            })),
+          );
+        }
+      },
+    );
+
+    return () => {
+      active = false;
+    };
+  }, [actions]);
 
   return (
     <PageTransition>
@@ -22,7 +50,7 @@ function ProfilePage() {
               <span className="hm-page-eyebrow">我的健康伙伴档案</span>
               <h1>{user.nickname}</h1>
               <p>
-                目标：{user.goal} · 连续坚持 {user.streakDays} 天 · 健康分 {user.healthScore}
+                目标：{user.goal} · 后端用户 ID：{user.userId || "-"}
               </p>
             </div>
           </div>
@@ -50,8 +78,8 @@ function ProfilePage() {
           <div className={styles.planGrid}>
             <article className={styles.planCard}>
               <span className="hm-page-eyebrow">提醒</span>
-              <strong>{user.reminder}</strong>
-              <p>尽量在提醒出现后就放慢一点，不需要一下子切得很彻底。</p>
+              <strong>{recommendations[0]?.content ? "已有后端 AI 建议" : "暂无后端提醒"}</strong>
+              <p>{recommendations[0]?.content || "进入 AI 建议页后，后端会生成今日建议。"}</p>
             </article>
             <article className={styles.planCard}>
               <span className="hm-page-eyebrow">病史备注</span>
@@ -63,7 +91,7 @@ function ProfilePage() {
             <Button color="primary" onClick={() => navigate("/profile-setup")}>
               修改档案
             </Button>
-            <Button onClick={() => Toast.show({ content: "目标调整入口已预留，当前可先在档案页修改。" })}>修改目标</Button>
+            <Button onClick={() => navigate("/profile-setup")}>修改目标</Button>
           </div>
         </AppCard>
 
@@ -71,7 +99,7 @@ function ProfilePage() {
           <List mode="card">
             <List.Item onClick={() => navigate("/tasks")}>查看任务历史</List.Item>
             <List.Item onClick={() => navigate("/trends")}>查看健康数据</List.Item>
-            <List.Item onClick={() => Toast.show({ content: "成就系统可以作为下一版亮点继续加。" })}>我的成就</List.Item>
+            <List.Item onClick={() => Toast.show({ content: "当前后端未提供成就数据接口。" })}>我的成就</List.Item>
             <List.Item
               onClick={() => {
                 actions.logout();

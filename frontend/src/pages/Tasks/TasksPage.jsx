@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, ProgressBar, Selector, Toast } from "antd-mobile";
 import AppCard from "../../components/common/AppCard";
 import PageTransition from "../../components/common/PageTransition";
 import { useAppStore } from "../../store/AppStore";
+import { taskApi } from "../../services/api";
+import { mapTask } from "../../utils/backendMappers";
 import styles from "./TasksPage.module.css";
 
 const options = [
@@ -17,6 +19,40 @@ function TasksPage() {
     state: { tasks, user },
     actions,
   } = useAppStore();
+  const [completionRate, setCompletionRate] = useState(0);
+
+  const refreshTasks = async () => {
+    const [todayResult, historyResult] = await Promise.allSettled([taskApi.today(), taskApi.history()]);
+    const today = todayResult.status === "fulfilled" ? todayResult.value.tasks || [] : [];
+    const history = historyResult.status === "fulfilled" ? historyResult.value.tasks || [] : [];
+    const todayIds = new Set(today.map((task) => task.taskId));
+    const merged = [
+      ...today.map((task) => mapTask(task, "today")),
+      ...history.filter((task) => !todayIds.has(task.taskId)).map((task) => mapTask(task, "history")),
+    ];
+    actions.setTasks(merged);
+    if (todayResult.status === "fulfilled") setCompletionRate(todayResult.value.completionRate || 0);
+  };
+
+  useEffect(() => {
+    let active = true;
+    Promise.allSettled([taskApi.today(), taskApi.history()]).then(([todayResult, historyResult]) => {
+      if (!active) return;
+      const today = todayResult.status === "fulfilled" ? todayResult.value.tasks || [] : [];
+      const history = historyResult.status === "fulfilled" ? historyResult.value.tasks || [] : [];
+      const todayIds = new Set(today.map((task) => task.taskId));
+      const merged = [
+        ...today.map((task) => mapTask(task, "today")),
+        ...history.filter((task) => !todayIds.has(task.taskId)).map((task) => mapTask(task, "history")),
+      ];
+      actions.setTasks(merged);
+      if (todayResult.status === "fulfilled") setCompletionRate(todayResult.value.completionRate || 0);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [actions]);
 
   const todayTasks = useMemo(() => tasks.filter((task) => task.slot === "today"), [tasks]);
   const list = useMemo(() => {
@@ -26,10 +62,11 @@ function TasksPage() {
   }, [tasks, filter, todayTasks]);
 
   const completion = useMemo(() => {
+    if (completionRate) return completionRate;
     const total = todayTasks.length || 1;
     const done = todayTasks.filter((task) => task.completed).length;
     return Math.round((done / total) * 100);
-  }, [todayTasks]);
+  }, [completionRate, todayTasks]);
 
   const summary =
     completion >= 80
@@ -37,6 +74,17 @@ function TasksPage() {
       : completion >= 40
         ? "已经有行动了，再完成一项就会很舒服。"
         : "别着急补作业，先完成最轻的一件事就好。";
+
+  const handleTaskToggle = async (task) => {
+    const nextCompleted = !task.completed;
+    try {
+      await taskApi.check({ taskId: task.id, status: nextCompleted ? 1 : 0 });
+      await refreshTasks();
+      Toast.show({ content: nextCompleted ? "已完成" : "已恢复为未完成" });
+    } catch (error) {
+      Toast.show({ content: error.message || "任务更新失败" });
+    }
+  };
 
   return (
     <PageTransition>
@@ -51,7 +99,7 @@ function TasksPage() {
             <div className={styles.streakCard}>
               <strong>{completion}%</strong>
               <span>今日完成率</span>
-              <em>连续打卡 {user.streakDays} 天</em>
+              <em>{user.goal}</em>
             </div>
           </div>
           <ProgressBar percent={completion} />
@@ -88,8 +136,7 @@ function TasksPage() {
                   color={task.completed ? "success" : "primary"}
                   className={styles.checkBtn}
                   onClick={() => {
-                    actions.toggleTask(task.id);
-                    Toast.show({ content: task.completed ? "已恢复为未完成" : "完成得很好，继续保持这个节奏" });
+                    handleTaskToggle(task);
                   }}
                 >
                   {task.completed ? "已完成" : "去打卡"}
@@ -97,6 +144,7 @@ function TasksPage() {
               </article>
             );
           })}
+          {!list.length && <AppCard title="暂无任务">进入 AI 建议页生成今日建议后，后端会同步创建任务。</AppCard>}
         </div>
 
         <AppCard title="今天的小结">

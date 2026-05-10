@@ -1,9 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Button, Form, Input, Radio, TextArea, Toast } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/common/PageHeader";
 import PageTransition from "../../components/common/PageTransition";
 import { useAppStore } from "../../store/AppStore";
+import { profileApi } from "../../services/api";
+import { mapProfile } from "../../utils/backendMappers";
 import styles from "./ProfileSetupPage.module.css";
 
 const goals = ["减脂", "增肌", "改善睡眠", "保持健康"];
@@ -12,23 +14,43 @@ function ProfileSetupPage() {
   const [form] = Form.useForm();
   const values = Form.useWatch([], form);
   const navigate = useNavigate();
-  const { actions } = useAppStore();
+  const {
+    state: { user },
+    actions,
+  } = useAppStore();
+  const [saving, setSaving] = useState(false);
 
-  const canSubmit = useMemo(() => Boolean(values?.gender && values?.height && values?.weight && values?.goal), [values]);
+  const canSubmit = useMemo(
+    () => values?.gender != null && Boolean(values?.height && values?.weight && values?.goal),
+    [values],
+  );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const formValues = form.getFieldsValue();
-    actions.updateUser({
-      gender: formValues.gender,
-      height: Number(formValues.height),
-      weight: Number(formValues.weight),
-      goal: formValues.goal,
-      injuryHistory: formValues.injuryHistory || "",
-      allergyHistory: formValues.allergyHistory || "",
-      hasProfile: true,
-    });
-    Toast.show({ content: "档案保存成功，即将为你生成初始健康建议" });
-    navigate("/dashboard");
+    const medicalHistory = [
+      formValues.injuryHistory ? `伤病史：${formValues.injuryHistory}` : "",
+      formValues.allergyHistory ? `过敏史：${formValues.allergyHistory}` : "",
+    ]
+      .filter(Boolean)
+      .join("；");
+
+    try {
+      setSaving(true);
+      const profile = await profileApi.saveProfile({
+        gender: Number(formValues.gender),
+        height: Number(formValues.height),
+        weight: Number(formValues.weight),
+        healthGoal: formValues.goal,
+        medicalHistory: medicalHistory || "无",
+      });
+      actions.updateUser(mapProfile(profile));
+      Toast.show({ content: "档案保存成功" });
+      navigate("/dashboard");
+    } catch (error) {
+      Toast.show({ content: error.message || "档案保存失败" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -37,18 +59,25 @@ function ProfileSetupPage() {
         <PageHeader title="基础健康档案" />
         <Form
           form={form}
+          initialValues={{
+            gender: user.gender,
+            height: user.height,
+            weight: user.weight,
+            goal: user.goal,
+            injuryHistory: user.medicalHistory === "暂无" ? "" : user.medicalHistory,
+          }}
           layout="horizontal"
           className={styles.form}
           footer={
-            <Button color="primary" block disabled={!canSubmit} onClick={handleSave}>
+            <Button color="primary" block loading={saving} disabled={!canSubmit} onClick={handleSave}>
               保存档案
             </Button>
           }
         >
           <Form.Item name="gender" label="性别*" rules={[{ required: true, message: "请选择性别" }]}>
             <Radio.Group>
-              <Radio value="男">男</Radio>
-              <Radio value="女">女</Radio>
+              <Radio value={1}>男</Radio>
+              <Radio value={2}>女</Radio>
             </Radio.Group>
           </Form.Item>
           <Form.Item name="height" label="身高*" rules={[{ required: true, message: "请输入身高" }]}>

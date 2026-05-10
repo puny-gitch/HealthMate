@@ -7,17 +7,26 @@ export const authApi = {
 };
 
 export const profileApi = {
+  getProfile: () => http.get("/profile"),
   saveProfile: (payload) => http.post("/profile", payload),
   updateProfile: (payload) => http.put("/profile", payload),
 };
 
 export const healthApi = {
+  parseData: (payload) => http.post("/health/parse", payload),
   submitData: (payload) => http.post("/health/data", payload),
   getDashboard: () => http.get("/health/dashboard"),
   getTrends: (params) => http.get("/health/trends", { params }),
-  exportData: (params) => http.get("/health/export", { params }),
+  getRecentRecords: (params) => http.get("/health/record/recent", { params }),
+  exportData: (params) => http.get("/health/export", { params, responseType: "blob" }),
 };
 
 export const adviceApi = {
   history: () => http.get("/advice/history"),
+};
+
+export const taskApi = {
+  today: () => http.get("/task/today"),
+  history: (params) => http.get("/task/history", { params }),
+  check: (payload) => http.post("/task/check", payload),
 };

@@ -3,6 +3,8 @@ import { Button, Form, Input, Toast } from "antd-mobile";
 import { EyeInvisibleOutline, EyeOutline } from "antd-mobile-icons";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAppStore } from "../../store/AppStore";
+import { authApi, profileApi } from "../../services/api";
+import { mapProfile } from "../../utils/backendMappers";
 import { validateAccount, validatePassword, passwordStrength } from "../../utils/validators";
 import PageTransition from "../../components/common/PageTransition";
 import styles from "./AuthPage.module.css";
@@ -13,6 +15,7 @@ function AuthPage() {
   const navigate = useNavigate();
   const { actions } = useAppStore();
   const [visible, setVisible] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
   const password = Form.useWatch("password", form);
 
@@ -26,18 +29,32 @@ function AuthPage() {
       Toast.show({ content: accountError || passwordError });
       return;
     }
-    if (isRegister && values.account === "healthmate") {
-      Toast.show({ content: "用户名已存在，请更换后重试" });
+    if (isRegister && values.password !== values.confirmPassword) {
+      Toast.show({ content: "两次密码不一致" });
       return;
     }
-    if (!isRegister && values.password !== "health123") {
-      Toast.show({ content: "账号或密码错误，请重新输入" });
-      return;
+
+    try {
+      setSubmitting(true);
+      if (isRegister) {
+        await authApi.register({
+          account: values.account,
+          password: values.password,
+          confirmPassword: values.confirmPassword,
+        });
+      }
+      const loginResult = await authApi.login({ account: values.account, password: values.password });
+      actions.setToken(loginResult.token);
+      const profile = await profileApi.getProfile();
+      const user = mapProfile(profile);
+      actions.updateUser(user);
+      Toast.show({ content: isRegister ? "注册成功，请完善健康档案" : "登录成功" });
+      navigate(user.hasProfile ? "/dashboard" : "/profile-setup");
+    } catch (error) {
+      Toast.show({ content: error.message || "登录失败" });
+    } finally {
+      setSubmitting(false);
     }
-    actions.updateUser({ account: values.account, nickname: values.account });
-    actions.setToken(`mock-jwt-token-${Date.now()}`);
-    Toast.show({ content: isRegister ? "注册成功，请完善健康档案" : "登录成功" });
-    navigate("/profile-setup");
   };
 
   return (
@@ -46,7 +63,15 @@ function AuthPage() {
         <div className={styles.panel}>
           <h1>{isRegister ? "注册 HealthMate" : "登录 HealthMate"}</h1>
           <p>你的健康伴侣，从今天开始科学管理。</p>
-          <Form form={form} layout="horizontal" footer={<Button color="primary" block onClick={onSubmit}>{isRegister ? "立即注册" : "登录"}</Button>}>
+          <Form
+            form={form}
+            layout="horizontal"
+            footer={
+              <Button color="primary" block loading={submitting} onClick={onSubmit}>
+                {isRegister ? "立即注册" : "登录"}
+              </Button>
+            }
+          >
             <Form.Item
               name="account"
               label={isRegister ? "账号*" : "账号"}
@@ -71,15 +96,24 @@ function AuthPage() {
               />
             </Form.Item>
             {isRegister && (
-              <div className={styles.strengthWrap}>
-                <span>密码强度</span>
-                <div className={styles.strengthBar}>
-                  <i className={strength >= 1 ? styles.active : ""} />
-                  <i className={strength >= 2 ? styles.active : ""} />
-                  <i className={strength >= 3 ? styles.active : ""} />
-                  <i className={strength >= 4 ? styles.active : ""} />
+              <>
+                <Form.Item
+                  name="confirmPassword"
+                  label="确认密码*"
+                  rules={[{ required: true, message: "请再次输入密码" }]}
+                >
+                  <Input placeholder="请再次输入密码" type={visible ? "text" : "password"} clearable />
+                </Form.Item>
+                <div className={styles.strengthWrap}>
+                  <span>密码强度</span>
+                  <div className={styles.strengthBar}>
+                    <i className={strength >= 1 ? styles.active : ""} />
+                    <i className={strength >= 2 ? styles.active : ""} />
+                    <i className={strength >= 3 ? styles.active : ""} />
+                    <i className={strength >= 4 ? styles.active : ""} />
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </Form>
           <div className={styles.footer}>

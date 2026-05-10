@@ -1,9 +1,11 @@
 import { Avatar, Button, ProgressBar, Toast } from "antd-mobile";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppCard from "../../components/common/AppCard";
 import PageTransition from "../../components/common/PageTransition";
 import { useAppStore } from "../../store/AppStore";
+import { adviceApi, healthApi, taskApi } from "../../services/api";
+import { mapHealthRecord, mapTask, mapTrend } from "../../utils/backendMappers";
 import styles from "./DashboardPage.module.css";
 
 function getGreeting() {
@@ -21,15 +23,58 @@ function DashboardPage() {
     actions,
   } = useAppStore();
   const [expanded, setExpanded] = useState(false);
+  const [completionRate, setCompletionRate] = useState(0);
+
+  const refreshTodayTasks = async () => {
+    const result = await taskApi.today();
+    actions.setTasks((result.tasks || []).map((task) => mapTask(task, "today")));
+    setCompletionRate(result.completionRate || 0);
+  };
+
+  useEffect(() => {
+    let active = true;
+    Promise.allSettled([
+      healthApi.getDashboard(),
+      taskApi.today(),
+      healthApi.getRecentRecords({ days: 7 }),
+      adviceApi.history(),
+    ]).then(([dashboardResult, taskResult, recordResult, adviceResult]) => {
+      if (!active) return;
+      if (dashboardResult.status === "fulfilled") {
+        setCompletionRate(dashboardResult.value.completionRate || 0);
+        actions.setMetrics("week", mapTrend(dashboardResult.value));
+      }
+      if (taskResult.status === "fulfilled") {
+        actions.setTasks((taskResult.value.tasks || []).map((task) => mapTask(task, "today")));
+        setCompletionRate(taskResult.value.completionRate || 0);
+      }
+      if (recordResult.status === "fulfilled") {
+        actions.setRecentEntries((recordResult.value.records || []).map(mapHealthRecord));
+      }
+      if (adviceResult.status === "fulfilled") {
+        actions.setRecommendations(
+          (adviceResult.value || []).map((item) => ({
+            content: item.adviceText,
+            time: item.createdAt,
+          })),
+        );
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [actions]);
 
   const todayTasks = useMemo(() => tasks.filter((task) => task.slot === "today"), [tasks]);
   const progress = useMemo(() => {
+    if (completionRate) return completionRate;
     const total = todayTasks.length || 1;
     const done = todayTasks.filter((task) => task.completed).length;
     return Math.round((done / total) * 100);
-  }, [todayTasks]);
+  }, [completionRate, todayTasks]);
 
-  const latestAdvice = recommendations[0]?.content ?? "今天的建议正在路上，我们先从一件简单的小事开始。";
+  const latestAdvice = recommendations[0]?.content ?? "暂无后端 AI 建议，进入 AI 建议页生成今日建议。";
   const completionMood =
     progress >= 80
       ? {
@@ -47,15 +92,37 @@ function DashboardPage() {
           };
 
   const sleepAverage = useMemo(() => {
+    if (!metrics.week.sleep.length) return "0.0";
     const total = metrics.week.sleep.reduce((sum, item) => sum + item, 0);
     return (total / metrics.week.sleep.length).toFixed(1);
   }, [metrics.week.sleep]);
 
   const trendHighlights = [
-    { title: "睡眠", value: `${sleepAverage}h`, delta: "较上周 +0.4h", note: "恢复感在变好" },
-    { title: "运动", value: "轻量达标", delta: "本周 4 天有活动", note: "保持而不是冲刺" },
-    { title: "热量", value: "1880 kcal", delta: "整体平稳", note: "周末稍微高一些" },
+    { title: "睡眠", value: `${sleepAverage}h`, delta: "近 7 天平均", note: metrics.week.insight },
+    {
+      title: "摄入",
+      value: `${metrics.week.intake.at(-1) || 0} kcal`,
+      delta: "最近一次记录",
+      note: "来自后端健康记录",
+    },
+    {
+      title: "消耗",
+      value: `${metrics.week.burn.at(-1) || 0} kcal`,
+      delta: "最近一次记录",
+      note: "来自后端健康记录",
+    },
   ];
+
+  const handleTaskToggle = async (task) => {
+    const nextCompleted = !task.completed;
+    try {
+      await taskApi.check({ taskId: task.id, status: nextCompleted ? 1 : 0 });
+      await refreshTodayTasks();
+      Toast.show({ content: nextCompleted ? "已完成" : "已恢复为待完成" });
+    } catch (error) {
+      Toast.show({ content: error.message || "任务更新失败" });
+    }
+  };
 
   return (
     <PageTransition>
@@ -65,13 +132,13 @@ function DashboardPage() {
             <span className="hm-page-eyebrow">HealthMate Daily Brief</span>
             <h1>
               {getGreeting()}，{user.nickname}
-              <span>你已经连续坚持 {user.streakDays} 天了。</span>
+              <span>当前目标：{user.goal}</span>
             </h1>
             <p>{completionMood.copy}</p>
             <div className={styles.heroMeta}>
               <span className="hm-soft-pill">目标：{user.goal}</span>
-              <span className="hm-soft-pill">健康分 {user.healthScore}</span>
-              <span className="hm-soft-pill">提醒：{user.reminder}</span>
+              <span className="hm-soft-pill">近期记录 {recentEntries.length} 条</span>
+              <span className="hm-soft-pill">今日任务 {todayTasks.length} 项</span>
             </div>
           </div>
 
@@ -125,6 +192,7 @@ function DashboardPage() {
             </div>
           </div>
           <div className={styles.taskList}>
+            {!todayTasks.length && <p className="hm-section-copy">暂无后端任务，进入 AI 建议页可生成今日任务。</p>}
             {todayTasks.map((task) => {
               const ratio = task.target ? (task.progress / task.target) * 100 : 0;
               return (
@@ -138,10 +206,7 @@ function DashboardPage() {
                       size="small"
                       color={task.completed ? "success" : "primary"}
                       fill={task.completed ? "solid" : "outline"}
-                      onClick={() => {
-                        actions.toggleTask(task.id);
-                        Toast.show({ content: task.completed ? "已恢复为待完成" : "完成得很好，继续保持" });
-                      }}
+                      onClick={() => handleTaskToggle(task)}
                     >
                       {task.completed ? "已完成" : "去完成"}
                     </Button>
@@ -184,7 +249,7 @@ function DashboardPage() {
           <AppCard className={styles.entryCard}>
             <span className="hm-page-eyebrow">最近一次记录</span>
             <h2 className="hm-section-title">{recentEntries[0]?.mood}</h2>
-            <p className={styles.entryText}>{recentEntries[0]?.summary}</p>
+            <p className={styles.entryText}>{recentEntries[0]?.summary || "暂无后端健康记录"}</p>
             <button className={styles.linkButton} onClick={() => navigate("/data-entry")} type="button">
               继续补充今天的感受
             </button>

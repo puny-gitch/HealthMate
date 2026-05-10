@@ -1,14 +1,54 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { DotLoading } from "antd-mobile";
+import { useEffect } from "react";
 import { useAppStore } from "../store/AppStore";
+import { profileApi } from "../services/api";
+import { AUTH_EXPIRED_EVENT } from "../services/http";
+import { mapProfile } from "../utils/backendMappers";
 
 export function AuthGuard() {
   const {
     state: { token, user },
+    actions,
   } = useAppStore();
   const location = useLocation();
 
+  useEffect(() => {
+    const handleExpired = () => actions.logout();
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleExpired);
+  }, [actions]);
+
+  useEffect(() => {
+    if (!token || user.userId) {
+      return;
+    }
+
+    let active = true;
+    profileApi
+      .getProfile()
+      .then((profile) => {
+        if (active) actions.updateUser(mapProfile(profile));
+      })
+      .catch(() => {
+        if (active) actions.logout();
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [actions, token, user.userId]);
+
   if (!token) {
     return <Navigate to="/auth/login" replace state={{ from: location.pathname }} />;
+  }
+
+  if (token && !user.userId) {
+    return (
+      <div style={{ padding: 32, textAlign: "center" }}>
+        <DotLoading color="primary" />
+      </div>
+    );
   }
 
   if (!user.hasProfile && location.pathname !== "/profile-setup") {

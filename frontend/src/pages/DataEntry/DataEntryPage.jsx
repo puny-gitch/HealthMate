@@ -5,45 +5,12 @@ import AppCard from "../../components/common/AppCard";
 import PageTransition from "../../components/common/PageTransition";
 import RiskAlertModal from "../../components/feedback/RiskAlertModal";
 import { useAppStore } from "../../store/AppStore";
+import { healthApi } from "../../services/api";
+import { mapParsedHealth } from "../../utils/backendMappers";
 import { detectHighRisk } from "../../utils/riskWords";
 import styles from "./DataEntryPage.module.css";
 
 const examplePrompts = ["跑了 40 分钟，晚饭吃得清淡", "昨晚只睡了 6 小时，今天有点累", "下午喝了奶茶，晚上散步 20 分钟"];
-
-function parseDraft(text) {
-  const source = text || "";
-  const sleepHoursMatch = source.match(/(\d+(?:\.\d+)?)\s*(?:小时|h|H)/);
-  const sleepMinutesMatch = source.match(/(\d+)\s*分钟睡/);
-  const intakeMatch = source.match(/(?:吃了|摄入|热量)\D{0,6}(\d{2,4})\s*(?:kcal|卡)?/i);
-  const exerciseMatch = source.match(/(?:跑了|运动|散步|消耗)\D{0,6}(\d{2,4})\s*(?:分钟|kcal|卡)?/i);
-
-  const sleepHours = sleepHoursMatch
-    ? Number(sleepHoursMatch[1])
-    : sleepMinutesMatch
-      ? Number((Number(sleepMinutesMatch[1]) / 60).toFixed(1))
-      : source.includes("累")
-        ? 6.2
-        : 7.0;
-  const intakeCalories = intakeMatch ? Number(intakeMatch[1]) : source.includes("沙拉") ? 480 : source.includes("奶茶") ? 780 : 560;
-  const exerciseCalories = exerciseMatch ? Number(exerciseMatch[1]) : source.includes("散步") ? 160 : source.includes("跑") ? 300 : 120;
-  const tags = [
-    source.includes("跑") || source.includes("散步") || source.includes("运动") ? "有氧" : null,
-    source.includes("沙拉") || source.includes("清淡") ? "轻负担饮食" : null,
-    source.includes("奶茶") || source.includes("甜") ? "高糖提醒" : null,
-    sleepHours >= 7 ? "睡眠恢复" : "睡眠偏少",
-  ].filter(Boolean);
-
-  return {
-    sleepHours,
-    intakeCalories,
-    exerciseCalories,
-    tags: [...new Set(tags)],
-    note:
-      sleepHours < 6.5
-        ? "今天的重点更适合放在恢复和早睡，不需要逼自己做太难。"
-        : "状态整体平稳，可以继续维持轻运动和清爽饮食。",
-  };
-}
 
 function DataEntryPage() {
   const navigate = useNavigate();
@@ -64,15 +31,18 @@ function DataEntryPage() {
       setRiskVisible(true);
       return;
     }
-    setParsing(true);
-    setTimeout(() => {
-      const nextParsed = parseDraft(rawInput);
+    try {
+      setParsing(true);
+      const result = await healthApi.parseData({ rawInput });
+      setParsed(mapParsedHealth(result));
+    } catch (error) {
+      Toast.show({ content: error.message || "解析失败" });
+    } finally {
       setParsing(false);
-      setParsed(nextParsed);
-    }, 900);
+    }
   };
 
-  const submitNLP = () => {
+  const submitNLP = async () => {
     if (!parsed) {
       Toast.show({ content: "先让 AI 帮你整理一下，再确认提交会更稳。" });
       return;
@@ -81,13 +51,25 @@ function DataEntryPage() {
       setRiskVisible(true);
       return;
     }
-    actions.addEntry({
-      summary: rawInput,
-      date: new Date().toISOString().slice(0, 10),
-      mood: parsed.sleepHours >= 7 ? "状态平稳" : "需要恢复",
-    });
-    Toast.show({ content: "记录成功，HealthMate 已记住你今天的状态。" });
-    navigate("/dashboard");
+    try {
+      await healthApi.submitData({
+        rawInput,
+        sleepMinutes: Math.round(Number(parsed.sleepHours || 0) * 60),
+        intakeCalories: Number(parsed.intakeCalories || 0),
+        exerciseCalories: Number(parsed.exerciseCalories || 0),
+        tags: parsed.tags,
+        nutritionDetails: parsed.nutritionDetails || {},
+      });
+      actions.addEntry({
+        summary: rawInput,
+        date: new Date().toISOString().slice(0, 10),
+        mood: parsed.tags.join(" / ") || parsed.confidence,
+      });
+      Toast.show({ content: "记录成功" });
+      navigate("/dashboard");
+    } catch (error) {
+      Toast.show({ content: error.message || "提交失败" });
+    }
   };
 
   const updateTag = (index, value) => {

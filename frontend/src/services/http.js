@@ -1,8 +1,11 @@
 import axios from "axios";
 
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+export const AUTH_EXPIRED_EVENT = "healthmate:auth-expired";
+
 // Axios 公共请求实例：后续联调时只需替换 baseURL 或通过 .env 注入。
 const http = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api",
+  baseURL: API_BASE_URL,
   timeout: 12000,
 });
 
@@ -17,8 +20,23 @@ http.interceptors.request.use((config) => {
 
 // 响应拦截器：统一错误处理占位，便于后续接业务状态码。
 http.interceptors.response.use(
-  (response) => response.data,
-  (error) => Promise.reject(error),
+  (response) => {
+    const payload = response.data;
+    if (payload && typeof payload === "object" && "code" in payload) {
+      if (payload.code === 0) return payload.data;
+      return Promise.reject(new Error(payload.message || "请求失败"));
+    }
+    return payload;
+  },
+  (error) => {
+    const status = error.response?.status;
+    const message = error.response?.data?.message || error.message || "请求失败";
+    if (status === 401) {
+      localStorage.removeItem("healthmate_token");
+      window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+    }
+    return Promise.reject(new Error(message));
+  },
 );
 
 export default http;

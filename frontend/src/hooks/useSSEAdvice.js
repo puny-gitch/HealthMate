@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const mockText =
-  "你最近其实已经在慢慢变稳了。今晚先把入睡时间往前挪一点点，再给自己留出 20 分钟轻松走动的时间；饮食上不用苛刻，只要把下午高糖零食换成更轻一点的选择，就已经是很好的进步。";
-
-export function useSSEAdvice(url) {
+export function useSSEAdvice(url, { onTasks } = {}) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [resumeHint, setResumeHint] = useState("");
@@ -23,32 +20,31 @@ export function useSSEAdvice(url) {
   }, []);
 
   const connect = useCallback(() => {
+    close();
     setText("");
     setError("");
     setResumeHint("");
     setLoading(true);
 
-    // SSE 连接逻辑：优先走后端 event-stream，失败后自动降级 mock 打字机，保证 UI 流式体验。
     if (!url) {
-      let index = 0;
-      timerRef.current = setInterval(() => {
-        index += 1;
-        setText(mockText.slice(0, index));
-        if (index >= mockText.length) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-          setLoading(false);
-        }
-      }, 34);
+      setError("缺少后端建议流地址");
+      setLoading(false);
       return;
     }
 
     try {
-      const source = new EventSource(url, { withCredentials: true });
+      const source = new EventSource(url);
       sourceRef.current = source;
-      source.onmessage = (event) => {
+      source.addEventListener("message", (event) => {
         setText((prev) => prev + event.data);
-      };
+      });
+      source.addEventListener("tasks", (event) => {
+        try {
+          onTasks?.(JSON.parse(event.data));
+        } catch {
+          setError("任务数据解析失败");
+        }
+      });
       source.onerror = () => {
         setResumeHint("网络波动，正在尝试断点续传...");
         setError("连接中断，已保留已生成内容");
@@ -63,7 +59,7 @@ export function useSSEAdvice(url) {
       setError("建议流加载失败，请稍后重试");
       setLoading(false);
     }
-  }, [url]);
+  }, [close, onTasks, url]);
 
   useEffect(() => () => close(), [close]);
 

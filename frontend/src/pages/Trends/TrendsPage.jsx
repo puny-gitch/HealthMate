@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
-import { Button, Selector } from "antd-mobile";
+import { useEffect, useMemo, useState } from "react";
+import { Button, Selector, Toast } from "antd-mobile";
 import AppCard from "../../components/common/AppCard";
 import EChartPanel from "../../components/charts/EChartPanel";
 import PageTransition from "../../components/common/PageTransition";
 import { useAppStore } from "../../store/AppStore";
+import { healthApi } from "../../services/api";
+import { mapTrend } from "../../utils/backendMappers";
 import { buildPieOption, buildSleepSeries, buildTrendOption } from "../../utils/chartOptions";
 import styles from "./TrendsPage.module.css";
 
@@ -16,21 +18,53 @@ function TrendsPage() {
   const [dimension, setDimension] = useState("week");
   const {
     state: { metrics },
+    actions,
   } = useAppStore();
+
+  useEffect(() => {
+    let active = true;
+    healthApi
+      .getTrends({ dimension })
+      .then((result) => {
+        if (active) actions.setMetrics(dimension, mapTrend(result));
+      })
+      .catch((error) => Toast.show({ content: error.message || "趋势数据加载失败" }));
+
+    return () => {
+      active = false;
+    };
+  }, [actions, dimension]);
 
   const currentMetrics = metrics[dimension];
   const sleepAverage = useMemo(() => {
+    if (!currentMetrics.sleep.length) return "0.0";
     const total = currentMetrics.sleep.reduce((sum, value) => sum + value, 0);
     return (total / currentMetrics.sleep.length).toFixed(1);
   }, [currentMetrics]);
   const intakeAverage = useMemo(() => {
+    if (!currentMetrics.intake.length) return 0;
     const total = currentMetrics.intake.reduce((sum, value) => sum + value, 0);
     return Math.round(total / currentMetrics.intake.length);
   }, [currentMetrics]);
   const burnAverage = useMemo(() => {
+    if (!currentMetrics.burn.length) return 0;
     const total = currentMetrics.burn.reduce((sum, value) => sum + value, 0);
     return Math.round(total / currentMetrics.burn.length);
   }, [currentMetrics]);
+
+  const handleExport = async () => {
+    try {
+      const blob = await healthApi.exportData();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `healthmate_export_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      Toast.show({ content: error.message || "导出失败" });
+    }
+  };
 
   const sleepOption = useMemo(
     () =>
@@ -110,7 +144,7 @@ function TrendsPage() {
                 </article>
               ))}
             </div>
-            <Button fill="outline" size="small">
+            <Button fill="outline" size="small" onClick={handleExport}>
               导出数据
             </Button>
           </AppCard>
