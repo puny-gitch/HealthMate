@@ -1095,3 +1095,330 @@ Invoke-RestMethod "$base/health/parse" `
 Invoke-WebRequest "$base/advice/stream?token=$token"
 ```
 
+## 附录：真实 AI 模式测试流程（DeepSeek）
+
+本节用于验证 `AI_MODE=llm` 时，后端是否能调用真实 DeepSeek API。日常课程演示可以继续使用 `AI_MODE=mock`；只有需要验证真实模型调用时才执行本节。
+
+### 1. 检查 `.env`
+
+打开：
+
+```powershell
+notepad D:\ZhouWei\Documents\VSCodeProjects\HealthMate\backend\.env
+```
+
+确认配置类似：
+
+```env
+AI_MODE=llm
+LLM_API_BASE=https://api.deepseek.com
+LLM_API_KEY=你的 DeepSeek API Key
+LLM_MODEL=deepseek-v4-flash
+LLM_TIMEOUT_SECONDS=10
+```
+
+可选模型：
+
+```env
+LLM_MODEL=deepseek-v4-flash
+```
+
+或：
+
+```env
+LLM_MODEL=deepseek-v4-pro
+```
+
+注意：
+
+- 不要把真实 key 写入 `.env.example`。
+- 不要提交 `.env`。
+- `LLM_API_BASE=https://api.deepseek.com` 即可，本项目代码会自动拼接 `/chat/completions`。
+
+### 2. 重启后端
+
+修改 `.env` 后必须重启后端。
+
+在运行 `uvicorn` 的终端按：
+
+```text
+Ctrl + C
+```
+
+然后重新启动：
+
+```powershell
+cd D:\ZhouWei\Documents\VSCodeProjects\HealthMate\backend
+.\.venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload --port 8080
+```
+
+启动后确认：
+
+```text
+Application startup complete.
+```
+
+### 3. 准备一组更适合 AI 判断的健康数据
+
+打开 Swagger：
+
+```text
+http://localhost:8080/docs
+```
+
+按正文流程完成：
+
+1. `POST /api/auth/register`
+2. `POST /api/auth/login`
+3. 右上角 `Authorize`
+4. `POST /api/profile`
+
+建议档案请求体：
+
+```json
+{
+  "gender": 1,
+  "height": 175,
+  "weight": 82,
+  "healthGoal": "减脂",
+  "medicalHistory": "膝盖偶尔不适，无明确食物过敏"
+}
+```
+
+然后提交多天健康数据。接口：
+
+```text
+POST /api/health/data
+```
+
+用例 1：
+
+```json
+{
+  "recordDate": "2026-05-08",
+  "rawInput": "睡了6小时，晚饭吃了汉堡和薯条，运动消耗100kcal",
+  "sleepMinutes": 360,
+  "intakeCalories": 2300,
+  "exerciseCalories": 100,
+  "tags": ["睡眠偏少", "高热量饮食"]
+}
+```
+
+用例 2：
+
+```json
+{
+  "recordDate": "2026-05-09",
+  "rawInput": "睡了6.5小时，午饭吃得正常，晚上散步20分钟",
+  "sleepMinutes": 390,
+  "intakeCalories": 1900,
+  "exerciseCalories": 180,
+  "tags": ["轻运动", "睡眠偏少"]
+}
+```
+
+用例 3：
+
+```json
+{
+  "recordDate": "2026-05-10",
+  "rawInput": "睡了7小时，运动消耗300kcal，吃了500卡",
+  "sleepMinutes": 420,
+  "intakeCalories": 500,
+  "exerciseCalories": 300,
+  "tags": ["有氧", "睡眠记录"]
+}
+```
+
+提交后可以用：
+
+```text
+GET /api/health/trends?dimension=week
+```
+
+确认趋势里有对应数据。
+
+### 4. 可选：先生成周总结
+
+真实 AI 建议会读取最新周总结作为上下文。建议先生成一次总结。
+
+接口：
+
+```text
+POST /api/health/summary/generate
+```
+
+Query 参数：
+
+```text
+startDate=2026-05-04
+endDate=2026-05-10
+cycle=week
+```
+
+预期 `code = 0`。
+
+再调用：
+
+```text
+GET /api/health/summary/latest?cycle=week
+```
+
+确认 `data.summaryContent` 不为空。
+
+### 5. 触发真实 AI 建议
+
+Swagger 不适合查看 SSE，使用浏览器新标签。
+
+先从登录接口复制 HealthMate 登录 token，也就是：
+
+```text
+POST /api/auth/login 返回的 data.token
+```
+
+然后浏览器打开：
+
+```text
+http://localhost:8080/api/advice/stream?token=<你的 HealthMate 登录 token>
+```
+
+注意：
+
+- 这里的 token 是 HealthMate 登录 JWT，不是 DeepSeek API key。
+- URL 中不要写 `Bearer`。
+
+预期页面会逐字输出：
+
+```text
+event: message
+data: ...
+
+event: tasks
+data: [...]
+
+event: done
+data: [DONE]
+```
+
+### 6. 判断是否真的调用了 LLM
+
+当前代码在 LLM 调用失败时会自动回退到 Mock，所以仅看到 `200 OK` 不一定代表真实 AI 成功。
+
+可以用以下方式判断：
+
+1. 看建议文本是否明显不再是固定 Mock 文案。
+
+Mock 常见文案包括：
+
+```text
+维持当前作息，避免熬夜。先从最容易完成的习惯开始，找回节奏。
+```
+
+或：
+
+```text
+欢迎回来。你已经有...天没有记录了...
+```
+
+如果文本明显结合了 `减脂`、`膝盖不适`、近几天高热量/睡眠偏少等细节，通常说明真实 LLM 已生效。
+
+2. 看生成任务是否不再固定为这些 Mock 任务：
+
+```text
+23:30 前入睡
+晚饭后快走 20 分钟
+下午茶替换为无糖酸奶+坚果
+```
+
+3. 查看建议历史：
+
+接口：
+
+```text
+GET /api/advice/history
+```
+
+确认最新 `adviceText` 是否为刚刚生成的真实建议。
+
+### 7. 重要：缓存会影响重复测试
+
+后端会按当天缓存建议：
+
+```text
+advice:daily:{userId}:{date}
+```
+
+如果同一个用户同一天重复打开：
+
+```text
+/api/advice/stream?token=...
+```
+
+可能直接返回缓存内容，不会再次调用 DeepSeek。
+
+要重新触发真实 LLM，有三种简单方式：
+
+1. 注册一个新用户重新测试。
+2. 重启后端进程。如果没有配置 Redis，内存缓存会清空。
+3. 修改系统日期不推荐，仅用于临时本地排查。
+
+### 8. 失败回退与排查
+
+如果 DeepSeek key、base url、模型名、网络或额度有问题，当前代码会回退到 Mock，不会直接让接口失败。
+
+重点检查：
+
+```env
+AI_MODE=llm
+LLM_API_BASE=https://api.deepseek.com
+LLM_API_KEY=是否真实有效
+LLM_MODEL=deepseek-v4-flash
+LLM_TIMEOUT_SECONDS=10
+```
+
+常见问题：
+
+- `AI_MODE` 仍然是 `mock`：一定不会调用 DeepSeek。
+- `.env` 改完没有重启后端：旧配置仍在运行。
+- `LLM_API_KEY` 填错或额度不足：会回退 Mock。
+- `LLM_MODEL` 不存在或无权限：会回退 Mock。
+- 本机网络无法访问 DeepSeek：会回退 Mock。
+
+### 9. 推荐验收用例
+
+用例目标：验证真实 AI 是否结合用户目标、历史记录、病史信息生成建议。
+
+用户档案：
+
+```json
+{
+  "gender": 1,
+  "height": 175,
+  "weight": 82,
+  "healthGoal": "减脂",
+  "medicalHistory": "膝盖偶尔不适，无明确食物过敏"
+}
+```
+
+健康数据特点：
+
+- 最近有睡眠偏少。
+- 有高热量饮食。
+- 运动量不高。
+- 有膝盖不适约束。
+
+期望真实 AI 建议体现：
+
+- 围绕减脂目标。
+- 不建议高冲击运动。
+- 建议轻量、可执行的运动或饮食调整。
+- 不做疾病诊断和处方建议。
+- 生成 1 到 3 个每日任务。
+
+通过标准：
+
+- SSE 返回 `event: message`、`event: tasks`、`event: done`。
+- `GET /api/task/today` 能看到 AI 生成任务。
+- `GET /api/advice/history` 能看到本次建议。
+- 文案明显不是固定 Mock 模板，并且结合了本次测试数据。
