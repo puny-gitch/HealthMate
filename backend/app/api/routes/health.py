@@ -261,10 +261,11 @@ def generate_summary(
 
 @router.get("/daily-report")
 def legacy_daily_report(
+    force: bool = Query(default=False),
     user_id: int = Depends(get_current_user_id_from_header_or_query),
     db: Session = Depends(get_db),
 ):
-    return build_advice_stream_response(user_id, db)
+    return build_advice_stream_response(user_id, db, force)
 
 
 @visual_router.get("/dashboard")

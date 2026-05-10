@@ -2,7 +2,7 @@ import asyncio
 import json
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -114,9 +114,9 @@ def advice_history(
     )
 
 
-def build_advice_stream_response(user_id: int, db: Session) -> StreamingResponse:
+def build_advice_stream_response(user_id: int, db: Session, force: bool = False) -> StreamingResponse:
     cache_key = f"advice:daily:{user_id}:{date.today().isoformat()}"
-    cached = cache_service.get_json(cache_key)
+    cached = None if force else cache_service.get_json(cache_key)
     if cached:
         result = _result_from_cache_payload(cached)
     else:
@@ -162,7 +162,8 @@ def build_advice_stream_response(user_id: int, db: Session) -> StreamingResponse
 
 @router.get("/stream")
 def advice_stream(
+    force: bool = Query(default=False),
     user_id: int = Depends(get_current_user_id_from_header_or_query),
     db: Session = Depends(get_db),
 ):
-    return build_advice_stream_response(user_id, db)
+    return build_advice_stream_response(user_id, db, force)

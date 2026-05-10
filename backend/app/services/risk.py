@@ -14,6 +14,7 @@ class RiskWordService:
         "呕血",
         "抽搐",
         "剧烈头痛",
+        "心梗",
         "心悸",
         "自杀",
         "抑郁发作",
@@ -24,4 +25,3 @@ class RiskWordService:
             return False
         source = text.lower()
         return any(word.lower() in source for word in self._risk_words)
-

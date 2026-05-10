@@ -14,6 +14,10 @@ legacy_router = APIRouter(prefix="/user", tags=["user-compat"])
 user_repository = UserRepository()
 
 
+def _profile_completed(user: User) -> bool:
+    return bool(user.gender is not None and user.height is not None and user.weight is not None and user.health_goal)
+
+
 @router.post("/register")
 def register(payload: AuthRegisterReq, db: Session = Depends(get_db)):
     if user_repository.get_by_username(db, payload.login_name):
@@ -34,7 +38,13 @@ def login(payload: AuthLoginReq, db: Session = Depends(get_db)):
         raise AppException("账号或密码错误", code=40011, status_code=400)
     token, expire = create_access_token(user.user_id)
     return api_success(
-        {"token": token, "expireAt": expire.isoformat(), "userId": user.user_id},
+        {
+            "token": token,
+            "expireAt": expire.isoformat(),
+            "userId": user.user_id,
+            "username": user.username,
+            "profileCompleted": _profile_completed(user),
+        },
         "登录成功",
     )
 
