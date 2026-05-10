@@ -23,30 +23,15 @@ class HealthRepository:
         stmt = select(HealthRecord).where(
             HealthRecord.user_id == user_id,
             HealthRecord.record_date == target_date,
-        )
+        ).order_by(HealthRecord.recorded_at.desc(), HealthRecord.record_id.desc())
         return db.scalar(stmt)
-
-    def upsert_by_user_date(self, db: Session, record: HealthRecord) -> HealthRecord:
-        existing = self.get_by_user_date(db, record.user_id, record.record_date)
-        if not existing:
-            return self.create(db, record)
-
-        if record.raw_input is not None:
-            existing.raw_input = record.raw_input
-        existing.estimated_intake_kcal = record.estimated_intake_kcal
-        existing.estimated_burn_kcal = record.estimated_burn_kcal
-        existing.sleep_minutes = record.sleep_minutes
-        existing.nutrition_details = record.nutrition_details
-        existing.health_tags = record.health_tags
-        existing.confidence = record.confidence
-        return self.save(db, existing)
 
     def get_recent(self, db: Session, user_id: int, days: int) -> list[HealthRecord]:
         start = date.today() - timedelta(days=days - 1)
         stmt = (
             select(HealthRecord)
             .where(HealthRecord.user_id == user_id, HealthRecord.record_date >= start)
-            .order_by(HealthRecord.record_date.asc())
+            .order_by(HealthRecord.record_date.asc(), HealthRecord.recorded_at.asc(), HealthRecord.record_id.asc())
         )
         return list(db.scalars(stmt).all())
 
@@ -54,7 +39,7 @@ class HealthRepository:
         stmt = (
             select(HealthRecord)
             .where(HealthRecord.user_id == user_id)
-            .order_by(HealthRecord.record_date.desc(), HealthRecord.record_id.desc())
+            .order_by(HealthRecord.recorded_at.desc(), HealthRecord.record_id.desc())
             .limit(1)
         )
         return db.scalar(stmt)
@@ -67,6 +52,6 @@ class HealthRepository:
                 HealthRecord.record_date >= start,
                 HealthRecord.record_date <= end,
             )
-            .order_by(HealthRecord.record_date.asc())
+            .order_by(HealthRecord.record_date.asc(), HealthRecord.recorded_at.asc(), HealthRecord.record_id.asc())
         )
         return list(db.scalars(stmt).all())

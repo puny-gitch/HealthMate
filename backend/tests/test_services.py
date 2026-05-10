@@ -1,6 +1,8 @@
 from app.services.advice import AdviceService, MockAdviceProvider
+from app.services.health_parse_ai import HealthAIParseService
 from app.services.parse import ParseService
 from app.services.risk import RiskWordService
+from app.services.task_generation import TaskGenerationService
 
 
 def test_risk_detector():
@@ -23,3 +25,32 @@ def test_mock_advice():
     assert "睡眠" in result.advice_text
     assert 1 <= len(result.tasks) <= 3
 
+
+def test_health_ai_parse_rule_fallback_preview():
+    svc = HealthAIParseService()
+    result = svc.parse("中午吃了鸡胸肉沙拉，晚上跑步30分钟，昨晚睡了6小时")
+    assert result.parse_id
+    assert result.preview_data["sleepMinutes"] == 360
+    assert result.preview_data["recordType"] in {"mixed", "sleep"}
+    assert "previewData" not in result.preview_data
+
+
+def test_task_generation_filters_completed_similarity():
+    class Task:
+        def __init__(self, content, status):
+            self.task_content = content
+            self.status = status
+
+    svc = TaskGenerationService()
+    candidates, skipped = svc.generate_candidates(
+        {
+            "health_goal": "减脂",
+            "recent_records": [],
+            "completed_tasks": [Task("晚饭后快走或慢跑 20 分钟", 1)],
+            "pending_tasks": [],
+            "history_completion_rate": 0,
+        },
+        max_tasks=3,
+    )
+    assert skipped
+    assert all("晚饭后快走或慢跑 20 分钟" != item.task_content for item in candidates)

@@ -8,6 +8,24 @@ class TaskCheckReq(BaseModel):
     status: int = Field(ge=0, le=1)
 
 
+class TaskGeneratePreviewReq(BaseModel):
+    targetDate: date | None = None
+    maxTasks: int = Field(default=3, ge=1, le=5)
+
+
+class TaskDraftItem(BaseModel):
+    draftId: str | None = None
+    taskContent: str = Field(min_length=1, max_length=255)
+    aiReason: str | None = None
+    difficulty: str | None = None
+    similarityWarning: bool | None = None
+
+
+class TaskAddSelectedReq(BaseModel):
+    targetDate: date | None = None
+    tasks: list[TaskDraftItem] = Field(min_length=1, max_length=5)
+
+
 class TaskItem(BaseModel):
     taskId: int
     taskDate: date
@@ -20,4 +38,3 @@ class TaskItem(BaseModel):
 class TaskHistoryResp(BaseModel):
     tasks: list[TaskItem]
     completionRate: int
-

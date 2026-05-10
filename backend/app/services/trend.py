@@ -9,16 +9,17 @@ class TrendService:
         buckets: dict[date, dict] = {}
         for i in range(days):
             day = start + timedelta(days=i)
-            buckets[day] = {"sleep": 0, "intake": 0, "burn": 0, "count": 0, "tags": {}}
+            buckets[day] = {"sleep": 0, "intake": 0, "burn": 0, "sleep_count": 0, "tags": {}}
 
         for record in records:
             day = record.record_date
             if day not in buckets:
                 continue
-            buckets[day]["sleep"] += int(record.sleep_minutes or 0)
+            if record.sleep_minutes is not None:
+                buckets[day]["sleep"] += int(record.sleep_minutes or 0)
+                buckets[day]["sleep_count"] += 1
             buckets[day]["intake"] += int(record.estimated_intake_kcal or 0)
             buckets[day]["burn"] += int(record.estimated_burn_kcal or 0)
-            buckets[day]["count"] += 1
             for tag in (record.health_tags or []):
                 buckets[day]["tags"][tag] = buckets[day]["tags"].get(tag, 0) + 1
 
@@ -30,10 +31,10 @@ class TrendService:
 
         for day, payload in buckets.items():
             categories.append(day.isoformat())
-            count = max(payload["count"], 1)
-            sleep_series.append(int(payload["sleep"] / count))
-            intake_series.append(int(payload["intake"] / count))
-            burn_series.append(int(payload["burn"] / count))
+            sleep_count = max(payload["sleep_count"], 1)
+            sleep_series.append(int(payload["sleep"] / sleep_count))
+            intake_series.append(int(payload["intake"]))
+            burn_series.append(int(payload["burn"]))
             for tag, val in payload["tags"].items():
                 tag_distribution[tag] = tag_distribution.get(tag, 0) + val
 
@@ -44,4 +45,3 @@ class TrendService:
             "burnSeries": burn_series,
             "tagDistribution": tag_distribution,
         }
-

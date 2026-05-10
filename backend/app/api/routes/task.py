@@ -7,13 +7,24 @@ from app.api.deps import get_current_user_id
 from app.core.exceptions import AppException
 from app.core.response import api_success
 from app.db.session import get_db
+from app.models.daily_task import DailyTask
+from app.repositories.advice_repository import AdviceRepository
+from app.repositories.health_repository import HealthRepository
+from app.repositories.summary_repository import SummaryRepository
 from app.repositories.task_repository import TaskRepository
-from app.schemas.task import TaskCheckReq
+from app.repositories.user_repository import UserRepository
+from app.schemas.task import TaskAddSelectedReq, TaskCheckReq, TaskGeneratePreviewReq
+from app.services.task_generation import TaskGenerationService
 from app.services.task import TaskService
 
 router = APIRouter(prefix="/task", tags=["task"])
 task_repository = TaskRepository()
+health_repository = HealthRepository()
+user_repository = UserRepository()
+advice_repository = AdviceRepository()
+summary_repository = SummaryRepository()
 task_service = TaskService()
+task_generation_service = TaskGenerationService()
 
 
 @router.post("/check")
@@ -89,4 +100,89 @@ def task_today(
             "completionRate": completion,
         },
         "查询成功",
+    )
+
+
+@router.post("/generate-preview")
+def generate_task_preview(
+    payload: TaskGeneratePreviewReq,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    target_date = payload.targetDate or date.today()
+    user = user_repository.get_by_id(db, user_id)
+    recent_records = health_repository.get_recent(db, user_id, 30)
+    today_tasks = task_repository.list_by_date(db, user_id, target_date)
+    history_tasks = task_repository.list_by_date(db, user_id)
+    latest_advice = advice_repository.get_latest(db, user_id)
+    latest_summary = summary_repository.get_latest(db, user_id, "week")
+    context = task_generation_service.build_context(
+        user=user,
+        recent_records=recent_records,
+        today_tasks=today_tasks,
+        history_tasks=history_tasks,
+        latest_advice=latest_advice,
+        latest_summary=latest_summary,
+        target_date=target_date,
+    )
+    candidates, skipped = task_generation_service.generate_candidates(context, payload.maxTasks)
+    return api_success(
+        {
+            "targetDate": target_date.isoformat(),
+            "candidates": [
+                {
+                    "draftId": item.draft_id,
+                    "taskContent": item.task_content,
+                    "aiReason": item.ai_reason,
+                    "difficulty": item.difficulty,
+                    "similarityWarning": item.similarity_warning,
+                }
+                for item in candidates
+            ],
+            "skippedReasons": skipped,
+        },
+        "候选任务生成成功",
+    )
+
+
+@router.post("/add-selected")
+def add_selected_tasks(
+    payload: TaskAddSelectedReq,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    target_date = payload.targetDate or date.today()
+    completed_tasks = [task for task in task_repository.list_by_date(db, user_id, target_date) if task.status == 1]
+    skipped: list[str] = []
+    tasks: list[DailyTask] = []
+    for item in payload.tasks:
+        if task_generation_service.is_similar_to_any(item.taskContent, [task.task_content for task in completed_tasks]):
+            skipped.append(f"已完成相似任务，未添加：{item.taskContent}")
+            continue
+        tasks.append(
+            DailyTask(
+                user_id=user_id,
+                task_date=target_date,
+                task_content=item.taskContent,
+                ai_reason=item.aiReason,
+                status=0,
+            )
+        )
+    created = task_repository.upsert_for_date(db, user_id, target_date, tasks) if tasks else []
+    return api_success(
+        {
+            "tasks": [
+                {
+                    "taskId": task.task_id,
+                    "taskDate": task.task_date.isoformat(),
+                    "taskContent": task.task_content,
+                    "status": task.status,
+                    "aiReason": task.ai_reason,
+                    "updatedAt": task.updated_at.isoformat(),
+                }
+                for task in created
+            ],
+            "skippedReasons": skipped,
+        },
+        "任务添加完成",
     )

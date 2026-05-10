@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.models.advice_history import AdviceHistory
-from app.models.daily_task import DailyTask
 from app.repositories.advice_repository import AdviceRepository
 from app.repositories.health_repository import HealthRepository
 from app.repositories.summary_repository import SummaryRepository
@@ -55,19 +54,8 @@ class MaintenanceService:
                 cache_key,
                 {"adviceText": result.advice_text, "tasks": result.tasks},
             )
-            tasks = [
-                DailyTask(
-                    user_id=user.user_id,
-                    task_date=day,
-                    task_content=task["taskContent"],
-                    ai_reason=task.get("aiReason"),
-                    status=0,
-                )
-                for task in result.tasks
-            ]
-            created_tasks = self.task_repository.upsert_for_date(db, user.user_id, day, tasks)
             self.advice_repository.create(db, AdviceHistory(user_id=user.user_id, advice_text=result.advice_text))
-            generated.append({"userId": user.user_id, "taskCount": len(created_tasks)})
+            generated.append({"userId": user.user_id})
         return {"count": len(generated), "items": generated}
 
     def run_daily_jobs(self, db: Session, today: date | None = None) -> dict:

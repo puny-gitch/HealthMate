@@ -18,8 +18,9 @@ class User(Base):
     health_goal: Mapped[str] = mapped_column(String(50), nullable=False, default="保持健康")
     health_goal_version: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     medical_history: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    injury_history: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    allergy_history: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
-

@@ -18,6 +18,17 @@ def _profile_completed(user) -> bool:
     return bool(user.gender is not None and user.height is not None and user.weight is not None and user.health_goal)
 
 
+def _combined_medical_history(user) -> str | None:
+    parts = []
+    if user.injury_history:
+        parts.append(f"伤病史：{user.injury_history}")
+    if user.allergy_history:
+        parts.append(f"过敏史：{user.allergy_history}")
+    if parts:
+        return "；".join(parts)
+    return user.medical_history
+
+
 def _serialize_profile(user) -> dict:
     return {
         "userId": user.user_id,
@@ -26,7 +37,9 @@ def _serialize_profile(user) -> dict:
         "height": float(user.height) if user.height is not None else None,
         "weight": float(user.weight) if user.weight is not None else None,
         "healthGoal": user.health_goal,
-        "medicalHistory": user.medical_history,
+        "medicalHistory": _combined_medical_history(user),
+        "injuryHistory": user.injury_history,
+        "allergyHistory": user.allergy_history,
         "healthGoalVersion": user.health_goal_version.isoformat() if user.health_goal_version else None,
         "profileCompleted": _profile_completed(user),
     }
@@ -47,7 +60,12 @@ def save_profile(
     current_user.height = payload.height
     current_user.weight = payload.weight
     current_user.health_goal = payload.healthGoal
-    current_user.medical_history = payload.medicalHistory
+    if payload.injuryHistory is not None:
+        current_user.injury_history = payload.injuryHistory
+    if payload.allergyHistory is not None:
+        current_user.allergy_history = payload.allergyHistory
+    combined = _combined_medical_history(current_user)
+    current_user.medical_history = combined or payload.medicalHistory
     current_user.health_goal_version = datetime.utcnow()
     user_repository.save(db, current_user)
     return api_success(_serialize_profile(current_user), "保存成功")

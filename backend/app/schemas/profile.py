@@ -7,6 +7,8 @@ class ProfileUpsertReq(BaseModel):
     weight: float | None = Field(default=None, gt=0, le=400)
     healthGoal: str = Field(min_length=1, max_length=50, validation_alias=AliasChoices("healthGoal", "goal"))
     medicalHistory: str | None = Field(default=None, max_length=255)
+    injuryHistory: str | None = Field(default=None, max_length=255)
+    allergyHistory: str | None = Field(default=None, max_length=255)
 
 
 class ProfileResp(BaseModel):
@@ -16,6 +18,8 @@ class ProfileResp(BaseModel):
     weight: float | None = None
     healthGoal: str
     medicalHistory: str | None = None
+    injuryHistory: str | None = None
+    allergyHistory: str | None = None
 
 
 class GoalChangeReq(BaseModel):

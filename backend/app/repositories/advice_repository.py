@@ -20,3 +20,11 @@ class AdviceRepository:
         )
         return list(db.scalars(stmt).all())
 
+    def get_latest(self, db: Session, user_id: int) -> AdviceHistory | None:
+        stmt = (
+            select(AdviceHistory)
+            .where(AdviceHistory.user_id == user_id)
+            .order_by(AdviceHistory.advice_id.desc())
+            .limit(1)
+        )
+        return db.scalar(stmt)

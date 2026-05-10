@@ -11,7 +11,6 @@ from app.core.config import get_settings
 from app.core.response import api_success
 from app.db.session import get_db
 from app.models.advice_history import AdviceHistory
-from app.models.daily_task import DailyTask
 from app.repositories.advice_repository import AdviceRepository
 from app.repositories.health_repository import HealthRepository
 from app.repositories.summary_repository import SummaryRepository
@@ -87,13 +86,13 @@ def _build_metrics(db: Session, user_id: int) -> dict:
 
 
 def _result_to_cache_payload(result) -> dict:
-    return {"adviceText": result.advice_text, "tasks": result.tasks}
+    return {"adviceText": result.advice_text}
 
 
 def _result_from_cache_payload(payload: dict):
     from app.services.advice import AdviceResult
 
-    return AdviceResult(advice_text=payload["adviceText"], tasks=payload.get("tasks", []))
+    return AdviceResult(advice_text=payload["adviceText"], tasks=[])
 
 
 @router.get("/history")
@@ -126,31 +125,11 @@ def build_advice_stream_response(user_id: int, db: Session, force: bool = False)
         advice = AdviceHistory(user_id=user_id, advice_text=result.advice_text)
         advice_repository.create(db, advice)
 
-    tasks = [
-        DailyTask(
-            user_id=user_id,
-            task_date=date.today(),
-            task_content=task["taskContent"],
-            ai_reason=task.get("aiReason"),
-            status=0,
-        )
-        for task in result.tasks
-    ]
-    created_tasks = task_repository.upsert_for_date(db, user_id, date.today(), tasks)
-
     async def event_generator():
         for chunk in result.advice_text:
             yield f"event: message\ndata: {chunk}\n\n"
             await asyncio.sleep(0.01)
-        task_data = [
-            {
-                "taskId": t.task_id,
-                "taskContent": t.task_content,
-                "aiReason": t.ai_reason,
-            }
-            for t in created_tasks
-        ]
-        yield f"event: tasks\ndata: {json.dumps(task_data, ensure_ascii=False)}\n\n"
+        yield f"event: advice\ndata: {json.dumps({'adviceText': result.advice_text}, ensure_ascii=False)}\n\n"
         yield "event: done\ndata: [DONE]\n\n"
 
     return StreamingResponse(

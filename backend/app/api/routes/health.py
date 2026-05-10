@@ -1,6 +1,6 @@
 import csv
 import io
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
@@ -15,7 +15,8 @@ from app.models.health_record import HealthRecord
 from app.repositories.health_repository import HealthRepository
 from app.repositories.summary_repository import SummaryRepository
 from app.repositories.task_repository import TaskRepository
-from app.schemas.health import HealthDataSubmitReq, HealthRecordConfirmReq
+from app.schemas.health import HealthAIParseReq, HealthDataSubmitReq, HealthRecordConfirmReq
+from app.services.health_parse_ai import HealthAIParseService
 from app.services.parse import ParseService
 from app.services.risk import RiskWordService
 from app.services.summary import SummaryService
@@ -29,6 +30,7 @@ summary_repository = SummaryRepository()
 task_repository = TaskRepository()
 risk_service = RiskWordService()
 parse_service = ParseService()
+ai_parse_service = HealthAIParseService(parse_service)
 trend_service = TrendService()
 task_service = TaskService()
 summary_service = SummaryService(health_repository, summary_repository)
@@ -49,18 +51,25 @@ def _build_health_record(payload: HealthDataSubmitReq, user_id: int) -> HealthRe
     burn = payload.exerciseCalories if payload.exerciseCalories is not None else parsed["estimated_burn_kcal"]
     tags = payload.tags if payload.tags is not None else parsed["tags"]
     has_data = any(value is not None for value in [sleep_minutes, intake, burn]) or bool(tags)
-    confidence = parsed["confidence"] if payload.rawInput or has_data else "low"
+    confidence = payload.confidence or (parsed["confidence"] if payload.rawInput or has_data else "low")
+    parse_warnings = payload.parseWarnings or []
+    if confidence == "low" and not parse_warnings:
+        parse_warnings = ["记录信息可信度较低，请确认后保存。"]
 
     return HealthRecord(
         user_id=user_id,
         record_date=payload.recordDate or date.today(),
+        recorded_at=payload.recordedAt or datetime.utcnow(),
+        record_type=payload.recordType,
         raw_input=payload.rawInput,
         estimated_intake_kcal=intake,
         estimated_burn_kcal=burn,
         sleep_minutes=sleep_minutes,
         nutrition_details=payload.nutritionDetails,
+        exercise_details=payload.exerciseDetails,
         health_tags=tags,
         confidence=confidence,
+        parse_warnings=parse_warnings,
     )
 
 
@@ -68,13 +77,17 @@ def _serialize_record(record: HealthRecord) -> dict:
     return {
         "recordId": record.record_id,
         "recordDate": record.record_date.isoformat(),
+        "recordedAt": record.recorded_at.isoformat(),
+        "recordType": record.record_type,
         "rawInput": record.raw_input,
         "sleepMinutes": record.sleep_minutes,
         "estimatedIntakeKcal": record.estimated_intake_kcal,
         "estimatedBurnKcal": record.estimated_burn_kcal,
         "nutritionDetails": record.nutrition_details,
+        "exerciseDetails": record.exercise_details,
         "healthTags": record.health_tags or [],
         "confidence": record.confidence,
+        "parseWarnings": record.parse_warnings or [],
         "updatedAt": record.updated_at.isoformat(),
     }
 
@@ -87,11 +100,10 @@ def submit_health_data(
     db: Session = Depends(get_db),
 ):
     record = _build_health_record(payload, user_id)
-    created = health_repository.upsert_by_user_date(db, record)
+    created = health_repository.create(db, record)
     return api_success({"recordId": created.record_id, "confidence": created.confidence}, "提交成功")
 
 
-@router.post("/record/natural")
 @router.post("/parse")
 def parse_health_input(
     payload: HealthDataSubmitReq,
@@ -116,6 +128,29 @@ def parse_health_input(
     )
 
 
+@router.post("/record/natural")
+@router.post("/record/parse-ai")
+def parse_health_input_ai(
+    payload: HealthAIParseReq,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    _ = (user_id, db)
+    if risk_service.contains_high_risk(payload.rawInput):
+        raise AppException("检测到高危词汇，请立即就医", code=40020, status_code=400)
+    result = ai_parse_service.parse(payload.rawInput, payload.recordedAt, payload.recordDate)
+    return api_success(
+        {
+            "parseId": result.parse_id,
+            "confidence": result.confidence,
+            "confidenceScore": result.confidence_score,
+            "warnings": result.warnings,
+            "previewData": result.preview_data,
+        },
+        "解析成功" if result.confidence != "low" else "解析可信度较低，请确认后提交",
+    )
+
+
 @router.post("/record/confirm")
 def confirm_health_record(
     payload: HealthRecordConfirmReq,
@@ -124,11 +159,12 @@ def confirm_health_record(
 ):
     data = {**(payload.previewData or {}), **(payload.userModifiedData or {})}
     data.setdefault("recordDate", payload.recordDate)
+    data.setdefault("recordedAt", payload.recordedAt)
     data.setdefault("rawInput", payload.rawInput)
     record_payload = HealthDataSubmitReq.model_validate(data)
     record = _build_health_record(record_payload, user_id)
-    created = health_repository.upsert_by_user_date(db, record)
-    return api_success({"recordId": created.record_id}, "提交成功")
+    created = health_repository.create(db, record)
+    return api_success({"recordId": created.record_id, "confidence": created.confidence}, "提交成功")
 
 
 @router.get("/dashboard")
