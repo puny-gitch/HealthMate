@@ -7,6 +7,7 @@ import { authApi, profileApi } from "../../services/api";
 import { mapProfile } from "../../utils/backendMappers";
 import { validateAccount, validatePassword, passwordStrength } from "../../utils/validators";
 import PageTransition from "../../components/common/PageTransition";
+import MotionNotice from "../../components/feedback/MotionNotice";
 import styles from "./AuthPage.module.css";
 
 function AuthPage() {
@@ -16,6 +17,8 @@ function AuthPage() {
   const { actions } = useAppStore();
   const [visible, setVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [successText, setSuccessText] = useState("");
   const [form] = Form.useForm();
   const password = Form.useWatch("password", form);
 
@@ -27,16 +30,21 @@ function AuthPage() {
     const accountError = validateAccount(values.account);
     const passwordError = validatePassword(values.password);
     if (accountError || passwordError) {
-      Toast.show({ content: accountError || passwordError });
+      const message = accountError || passwordError;
+      setFormError(message);
+      Toast.show({ content: message });
       return;
     }
     if (isRegister && values.password !== values.confirmPassword) {
+      setFormError("两次密码不一致");
       Toast.show({ content: "两次密码不一致" });
       return;
     }
 
     try {
       setSubmitting(true);
+      setFormError("");
+      setSuccessText("");
       if (isRegister) {
         await authApi.register({
           account: values.account,
@@ -57,14 +65,22 @@ function AuthPage() {
         actions.updateUser(user);
       } catch (profileError) {
         if (loginResult.profileCompleted) {
-          Toast.show({ content: profileError.message || "档案信息同步失败，已先进入首页" });
+          const message = profileError.message || "档案信息同步失败，已先进入首页";
+          setFormError(message);
+          Toast.show({ content: message });
         }
       }
       Toast.show({ content: isRegister ? "注册成功，请完善健康档案" : "登录成功" });
+      setSuccessText(isRegister ? "注册成功" : "登录成功");
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 420);
+      });
       navigate(user.hasProfile ? "/dashboard" : "/profile-setup");
     } catch (error) {
       actions.logout();
-      Toast.show({ content: error.message || "登录失败" });
+      const message = error.message || "登录失败";
+      setFormError(message);
+      Toast.show({ content: message });
     } finally {
       setSubmitting(false);
     }
@@ -76,12 +92,13 @@ function AuthPage() {
         <div className={styles.panel}>
           <h1>{isRegister ? "注册 HealthMate" : "登录 HealthMate"}</h1>
           <p>{isRegister ? "创建账号后需要完善基础健康档案。" : "登录后进入健康记录和任务管理。"}</p>
+          <MotionNotice className={styles.formNotice} color="alert" content={formError} />
           <Form
             form={form}
             layout="horizontal"
             footer={
               <Button color="primary" block loading={submitting} onClick={onSubmit}>
-                {isRegister ? "立即注册" : "登录"}
+                {successText || (isRegister ? "立即注册" : "登录")}
               </Button>
             }
           >

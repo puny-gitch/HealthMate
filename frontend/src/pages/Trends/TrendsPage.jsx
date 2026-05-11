@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Selector, Toast } from "antd-mobile";
+import { AnimatePresence, motion as Motion } from "framer-motion";
 import AppCard from "../../components/common/AppCard";
 import AnimatedCounter from "../../components/common/AnimatedCounter";
 import EChartPanel from "../../components/charts/EChartPanel";
 import PageTransition from "../../components/common/PageTransition";
 import StaggerList from "../../components/common/StaggerList";
+import MotionNotice from "../../components/feedback/MotionNotice";
 import { useAppStore } from "../../store/AppStore";
 import { healthApi } from "../../services/api";
 import { mapTrend } from "../../utils/backendMappers";
@@ -22,15 +24,24 @@ function TrendsPage() {
     state: { metrics },
     actions,
   } = useAppStore();
+  const [loadError, setLoadError] = useState("");
+  const [exportError, setExportError] = useState("");
 
   useEffect(() => {
     let active = true;
     healthApi
       .getTrends({ dimension })
       .then((result) => {
-        if (active) actions.setMetrics(dimension, mapTrend(result));
+        if (!active) return;
+        setLoadError("");
+        actions.setMetrics(dimension, mapTrend(result));
       })
-      .catch((error) => Toast.show({ content: error.message || "趋势数据加载失败" }));
+      .catch((error) => {
+        if (!active) return;
+        const message = error.message || "趋势数据加载失败";
+        setLoadError(message);
+        Toast.show({ content: message });
+      });
 
     return () => {
       active = false;
@@ -63,8 +74,11 @@ function TrendsPage() {
       link.download = `healthmate_export_${new Date().toISOString().slice(0, 10)}.csv`;
       link.click();
       URL.revokeObjectURL(url);
+      setExportError("");
     } catch (error) {
-      Toast.show({ content: error.message || "导出失败" });
+      const message = error.message || "导出失败";
+      setExportError(message);
+      Toast.show({ content: message });
     }
   };
 
@@ -98,6 +112,13 @@ function TrendsPage() {
   return (
     <PageTransition>
       <div className={styles.page}>
+        {(loadError || exportError) && (
+          <div className={styles.noticeStack}>
+            <MotionNotice color="alert" content={loadError ? `趋势数据未更新：${loadError}` : ""} />
+            <MotionNotice color="alert" content={exportError ? `导出失败：${exportError}` : ""} />
+          </div>
+        )}
+
         <AppCard className={styles.heroCard}>
           <div className={styles.heroTop}>
             <div>
@@ -136,14 +157,23 @@ function TrendsPage() {
           </div>
         </AppCard>
 
-        <section className={styles.grid}>
-          <AppCard>
-            <EChartPanel option={sleepOption} height={320} />
-          </AppCard>
-          <AppCard>
-            <EChartPanel option={calorieOption} height={320} />
-          </AppCard>
-        </section>
+        <AnimatePresence mode="wait">
+          <Motion.section
+            key={dimension}
+            className={styles.grid}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <AppCard>
+              <EChartPanel option={sleepOption} height={320} />
+            </AppCard>
+            <AppCard>
+              <EChartPanel option={calorieOption} height={320} />
+            </AppCard>
+          </Motion.section>
+        </AnimatePresence>
 
         <section className={styles.bottomGrid}>
           <AppCard title="标签分布">

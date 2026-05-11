@@ -64,6 +64,9 @@ export function mapParsedHealth(payload = {}) {
   const preview = payload.previewData || payload;
   return {
     parseId: payload.parseId || "",
+    shouldSave: payload.shouldSave !== false,
+    failureReason: payload.failureReason || "",
+    suggestions: payload.suggestions || [],
     warnings: payload.warnings || preview.parseWarnings || [],
     confidenceScore: payload.confidenceScore ?? null,
     previewData: preview,

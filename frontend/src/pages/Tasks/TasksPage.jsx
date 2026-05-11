@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, ProgressBar, Selector, Toast } from "antd-mobile";
+import { motion as Motion } from "framer-motion";
 import AppCard from "../../components/common/AppCard";
 import AnimatedCounter from "../../components/common/AnimatedCounter";
 import PageTransition from "../../components/common/PageTransition";
 import StaggerList from "../../components/common/StaggerList";
+import EmptyState from "../../components/feedback/EmptyState";
+import MotionNotice from "../../components/feedback/MotionNotice";
 import { useAppStore } from "../../store/AppStore";
 import { taskApi } from "../../services/api";
 import { mapTask } from "../../utils/backendMappers";
@@ -22,11 +25,16 @@ function TasksPage() {
     actions,
   } = useAppStore();
   const [completionRate, setCompletionRate] = useState(0);
+  const [loadErrors, setLoadErrors] = useState([]);
+  const [operationError, setOperationError] = useState("");
 
   const refreshTasks = async () => {
     const [todayResult, historyResult] = await Promise.allSettled([taskApi.today(), taskApi.history()]);
+    const errors = [];
     const today = todayResult.status === "fulfilled" ? todayResult.value.tasks || [] : [];
     const history = historyResult.status === "fulfilled" ? historyResult.value.tasks || [] : [];
+    if (todayResult.status === "rejected") errors.push(`今日任务加载失败：${todayResult.reason?.message || "请稍后重试"}`);
+    if (historyResult.status === "rejected") errors.push(`历史任务加载失败：${historyResult.reason?.message || "请稍后重试"}`);
     const todayIds = new Set(today.map((task) => task.taskId));
     const merged = [
       ...today.map((task) => mapTask(task, "today")),
@@ -34,14 +42,18 @@ function TasksPage() {
     ];
     actions.setTasks(merged);
     if (todayResult.status === "fulfilled") setCompletionRate(todayResult.value.completionRate || 0);
+    setLoadErrors(errors);
   };
 
   useEffect(() => {
     let active = true;
     Promise.allSettled([taskApi.today(), taskApi.history()]).then(([todayResult, historyResult]) => {
       if (!active) return;
+      const errors = [];
       const today = todayResult.status === "fulfilled" ? todayResult.value.tasks || [] : [];
       const history = historyResult.status === "fulfilled" ? historyResult.value.tasks || [] : [];
+      if (todayResult.status === "rejected") errors.push(`今日任务加载失败：${todayResult.reason?.message || "请稍后重试"}`);
+      if (historyResult.status === "rejected") errors.push(`历史任务加载失败：${historyResult.reason?.message || "请稍后重试"}`);
       const todayIds = new Set(today.map((task) => task.taskId));
       const merged = [
         ...today.map((task) => mapTask(task, "today")),
@@ -49,6 +61,7 @@ function TasksPage() {
       ];
       actions.setTasks(merged);
       if (todayResult.status === "fulfilled") setCompletionRate(todayResult.value.completionRate || 0);
+      setLoadErrors(errors);
     });
 
     return () => {
@@ -79,15 +92,27 @@ function TasksPage() {
     try {
       await taskApi.check({ taskId: task.id, status: nextCompleted ? 1 : 0 });
       await refreshTasks();
+      setOperationError("");
       Toast.show({ content: nextCompleted ? "已完成" : "已恢复为未完成" });
     } catch (error) {
-      Toast.show({ content: error.message || "任务更新失败" });
+      const message = error.message || "任务更新失败";
+      setOperationError(message);
+      Toast.show({ content: message });
     }
   };
 
   return (
     <PageTransition>
       <div className={styles.page}>
+        {(loadErrors.length > 0 || operationError) && (
+          <div className={styles.noticeStack}>
+            <MotionNotice color="alert" content={operationError} />
+            {loadErrors.map((message) => (
+              <MotionNotice key={message} color="info" content={message} />
+            ))}
+          </div>
+        )}
+
         <AppCard className={styles.heroCard}>
           <div className={styles.overviewHead}>
             <div>
@@ -133,7 +158,12 @@ function TasksPage() {
             {list.map((task) => {
               const ratio = task.target ? (task.progress / task.target) * 100 : 0;
               return (
-                <article key={task.id} className={`${styles.taskCard} ${task.completed ? styles.done : ""}`}>
+                <Motion.article
+                  key={task.id}
+                  layout
+                  whileTap={{ scale: 0.985 }}
+                  className={`${styles.taskCard} ${task.completed ? styles.done : ""}`}
+                >
                   <div className={styles.taskTop}>
                     <div>
                       <h3>{task.title}</h3>
@@ -161,11 +191,15 @@ function TasksPage() {
                     <span>{Math.round(Math.min(ratio, 100))}%</span>
                   </div>
                   <ProgressBar percent={Math.min(ratio, 100)} />
-                </article>
+                </Motion.article>
               );
             })}
           </StaggerList>
-          {!list.length && <AppCard title="暂无任务">可在 AI 建议页生成候选任务并选择加入。</AppCard>}
+          {!list.length && (
+            <AppCard title="暂无任务">
+              <EmptyState title="当前列表为空" description="可在 AI 建议页生成候选任务并选择加入。" />
+            </AppCard>
+          )}
         </div>
       </div>
     </PageTransition>

@@ -1,0 +1,16 @@
+.emptyState {
+  min-height: 104px;
+  border-radius: var(--hm-radius);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--hm-card-muted);
+  color: var(--hm-text-secondary);
+  text-align: center;
+}
+
+.emptyState strong {
+  color: var(--hm-text-main);
+}

@@ -1,25 +1,33 @@
 import { useMemo, useState } from "react";
 import { Button, DotLoading, Input, NoticeBar, Tag, TextArea, Toast } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion as Motion } from "framer-motion";
 import AppCard from "../../components/common/AppCard";
 import PageTransition from "../../components/common/PageTransition";
-import StaggerList from "../../components/common/StaggerList";
-import RiskAlertModal from "../../components/feedback/RiskAlertModal";
+import EmptyState from "../../components/feedback/EmptyState";
+import MotionNotice from "../../components/feedback/MotionNotice";
 import { useAppStore } from "../../store/AppStore";
 import { healthApi } from "../../services/api";
 import { mapParsedHealth } from "../../utils/backendMappers";
-import { detectHighRisk } from "../../utils/riskWords";
+import { buildRiskMessage, detectHighRisk } from "../../utils/riskWords";
 import styles from "./DataEntryPage.module.css";
 
 const examplePrompts = ["跑了 40 分钟，晚饭吃得清淡", "昨晚只睡了 6 小时，今天有点累", "下午喝了奶茶，晚上散步 20 分钟"];
 
-const resultVariants = {
-  hidden: { opacity: 0, y: 14 },
+const resultContainerVariants = {
+  hidden: {},
+  visible: {
+    transition: { staggerChildren: 0.07, delayChildren: 0.04 },
+  },
+};
+
+const revealItemVariants = {
+  hidden: { opacity: 0, y: 12, scale: 0.98 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.35, ease: [0.4, 0, 0.2, 1] },
+    scale: 1,
+    transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
   },
 };
 
@@ -28,11 +36,14 @@ function DataEntryPage() {
   const { actions } = useAppStore();
   const [rawInput, setRawInput] = useState("");
   const [parsing, setParsing] = useState(false);
-  const [riskVisible, setRiskVisible] = useState(false);
   const [parsed, setParsed] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [recordError, setRecordError] = useState("");
+  const [backendRiskMessage, setBackendRiskMessage] = useState("");
 
   const hasRiskInput = useMemo(() => detectHighRisk(rawInput), [rawInput]);
+  const riskMessage = useMemo(() => buildRiskMessage(rawInput), [rawInput]);
+  const riskPreviewMessage = riskMessage || backendRiskMessage;
 
   const parseNLP = async () => {
     if (!rawInput.trim()) {
@@ -40,18 +51,29 @@ function DataEntryPage() {
       return;
     }
     if (hasRiskInput) {
-      setRiskVisible(true);
+      setParsed(null);
+      setRecordError("");
       return;
     }
     try {
       setParsing(true);
+      setRecordError("");
+      setBackendRiskMessage("");
       const result = await healthApi.parseRecordAI({ rawInput, recordedAt: new Date().toISOString() });
       setParsed(mapParsedHealth(result));
-      if (result.confidence === "low" || result.warnings?.length) {
+      if (result.shouldSave === false) {
+        Toast.show({ content: result.failureReason || "未识别出可保存的健康记录。" });
+      } else if (result.confidence === "low" || result.warnings?.length) {
         Toast.show({ content: "解析结果需要确认，请检查提示和预览数据。" });
       }
     } catch (error) {
-      Toast.show({ content: error.message || "解析失败" });
+      if (error.code === 40020) {
+        setParsed(null);
+        setBackendRiskMessage(error.message || "检测到高危症状，本条记录不会保存，请及时就医或咨询专业医生。");
+      }
+      const message = error.message || "解析失败";
+      setRecordError(message);
+      Toast.show({ content: message });
     } finally {
       setParsing(false);
     }
@@ -62,12 +84,18 @@ function DataEntryPage() {
       Toast.show({ content: "请先完成解析，再提交记录。" });
       return;
     }
+    if (!parsed.shouldSave) {
+      Toast.show({ content: parsed.failureReason || "当前解析结果不可保存，请补充记录内容。" });
+      return;
+    }
     if (hasRiskInput) {
-      setRiskVisible(true);
+      Toast.show({ content: riskMessage || "当前内容涉及高危症状，已停止提交。" });
       return;
     }
     try {
       setSubmitting(true);
+      setRecordError("");
+      setBackendRiskMessage("");
       const userModifiedData = {
         sleepMinutes: Math.round(Number(parsed.sleepHours || 0) * 60),
         intakeCalories: Number(parsed.intakeCalories || 0),
@@ -97,7 +125,12 @@ function DataEntryPage() {
       Toast.show({ content: "记录成功" });
       navigate("/dashboard");
     } catch (error) {
-      Toast.show({ content: error.message || "提交失败" });
+      if (error.code === 40020) {
+        setBackendRiskMessage(error.message || "检测到高危症状，本条记录不会保存，请及时就医或咨询专业医生。");
+      }
+      const message = error.message || "提交失败";
+      setRecordError(message);
+      Toast.show({ content: message });
     } finally {
       setSubmitting(false);
     }
@@ -139,14 +172,13 @@ function DataEntryPage() {
         </AppCard>
 
         <AppCard title="原始输入">
+          <MotionNotice className={styles.inlineNotice} color="alert" content={recordError} />
           <TextArea
             value={rawInput}
             placeholder="比如：今天走了 6000 步，晚饭吃得清淡，昨晚睡了 7 小时。"
             onChange={(val) => {
               setRawInput(val);
-              if (detectHighRisk(val)) {
-                setRiskVisible(true);
-              }
+              setBackendRiskMessage("");
             }}
             className={styles.inputArea}
             autoSize={{ minRows: 5, maxRows: 8 }}
@@ -155,18 +187,29 @@ function DataEntryPage() {
             <Button color="primary" loading={parsing} onClick={parseNLP} disabled={hasRiskInput}>
               {parsing ? "AI 正在整理" : "开始解析"}
             </Button>
-            <Button loading={submitting} onClick={submitNLP} disabled={!parsed || hasRiskInput}>
+            <Button loading={submitting} onClick={submitNLP} disabled={!parsed || !parsed.shouldSave || hasRiskInput}>
               确认提交
             </Button>
           </div>
         </AppCard>
 
         <AppCard title="解析预览">
-          {!parsed && !parsing && (
-            <div className={styles.placeholder}>
-              <strong>暂无解析结果</strong>
-              <span>输入内容并点击开始解析后，将在此处显示结构化数据。</span>
-            </div>
+          {riskPreviewMessage && !parsing && (
+            <Motion.div
+              className={styles.riskPreview}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <NoticeBar color="alert" content={riskPreviewMessage} />
+              <div className={styles.riskDetail}>
+                <strong>已停止本条记录保存</strong>
+                <p>这类内容不适合作为普通健康打卡记录保存。你可以删除相关高危描述后重新解析，或直接联系医生、急救或身边可信赖的人。</p>
+              </div>
+            </Motion.div>
+          )}
+          {!parsed && !parsing && !riskPreviewMessage && (
+            <EmptyState title="暂无解析结果" description="输入内容并点击开始解析后，将在此处显示结构化数据。" />
           )}
           {parsing && (
             <div className={styles.parsing}>
@@ -175,64 +218,70 @@ function DataEntryPage() {
             </div>
           )}
           {parsed && !parsing && (
-            <motion.div
+            <Motion.div
               className={styles.resultCards}
-              variants={resultVariants}
+              variants={resultContainerVariants}
               initial="hidden"
               animate="visible"
             >
-              {(parsed.confidence === "low" || parsed.warnings.length > 0) && (
-                <div className={styles.warningList}>
+              {(!parsed.shouldSave || parsed.confidence === "low" || parsed.warnings.length > 0) && (
+                <Motion.div className={styles.warningList} variants={revealItemVariants}>
                   <NoticeBar
                     color="alert"
                     content={
-                      parsed.warnings.length
+                      parsed.failureReason ||
+                      (parsed.warnings.length
                         ? parsed.warnings.join("；")
-                        : "解析置信度较低，请检查并修改下方预览数据后再提交。"
+                        : "解析置信度较低，请检查并修改下方预览数据后再提交。")
                     }
                   />
-                </div>
+                  {parsed.suggestions.length > 0 && (
+                    <ul className={styles.suggestionList}>
+                      {parsed.suggestions.map((suggestion) => (
+                        <li key={suggestion}>{suggestion}</li>
+                      ))}
+                    </ul>
+                  )}
+                </Motion.div>
               )}
-              <div className={styles.metricCard}>
+              <Motion.div className={styles.metricCard} variants={revealItemVariants}>
                 <span>睡眠</span>
                 <div className={styles.metricValue}>
                   <Input value={`${parsed.sleepHours}`} onChange={(v) => setParsed((p) => ({ ...p, sleepHours: Number(v || 0) }))} />
                   <em>小时</em>
                 </div>
-              </div>
-              <div className={styles.metricCard}>
+              </Motion.div>
+              <Motion.div className={styles.metricCard} variants={revealItemVariants}>
                 <span>摄入</span>
                 <div className={styles.metricValue}>
                   <Input value={`${parsed.intakeCalories}`} onChange={(v) => setParsed((p) => ({ ...p, intakeCalories: Number(v || 0) }))} />
                   <em>kcal</em>
                 </div>
-              </div>
-              <div className={styles.metricCard}>
+              </Motion.div>
+              <Motion.div className={styles.metricCard} variants={revealItemVariants}>
                 <span>运动</span>
                 <div className={styles.metricValue}>
                   <Input value={`${parsed.exerciseCalories}`} onChange={(v) => setParsed((p) => ({ ...p, exerciseCalories: Number(v || 0) }))} />
                   <em>kcal</em>
                 </div>
-              </div>
-              <div className={styles.noteCard}>
+              </Motion.div>
+              <Motion.div className={styles.noteCard} variants={revealItemVariants}>
                 <strong>解析信息</strong>
                 <p>
                   {parsed.note}
                   {parsed.confidenceScore != null ? `，置信度分数：${Math.round(parsed.confidenceScore * 100)}%。` : "。"}
                 </p>
-              </div>
-              <div className={styles.tags}>
+              </Motion.div>
+              <Motion.div className={styles.tags} variants={revealItemVariants}>
                 {parsed.tags.map((tag, index) => (
                   <Tag key={tag + index} color="primary" fill="outline" onClose={() => removeTag(index)} closeable>
                     <Input value={tag} onChange={(v) => updateTag(index, v)} />
                   </Tag>
                 ))}
-              </div>
-            </motion.div>
+              </Motion.div>
+            </Motion.div>
           )}
         </AppCard>
-
-        <RiskAlertModal visible={riskVisible} onClose={() => setRiskVisible(false)} />
       </div>
     </PageTransition>
   );

@@ -3,6 +3,11 @@
   gap: 16px;
 }
 
+.noticeStack {
+  display: grid;
+  gap: 8px;
+}
+
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) 280px;

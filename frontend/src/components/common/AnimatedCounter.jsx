@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { animate, useInView } from "framer-motion";
 
 function formatValue(value, decimal) {
-  if (typeof value === "number" && decimal) {
-    return value.toFixed(decimal);
+  const numericValue = Number(value || 0);
+  if (decimal) {
+    return numericValue.toFixed(decimal);
   }
-  return String(value);
+  return String(Math.round(numericValue));
 }
 
 function AnimatedCounter({ from = 0, to, duration = 1.2, suffix = "", decimal, className }) {
@@ -15,11 +16,14 @@ function AnimatedCounter({ from = 0, to, duration = 1.2, suffix = "", decimal, c
 
   useEffect(() => {
     if (!inView) return;
-    const controls = animate(from, to, {
+    const start = Number(from || 0);
+    const target = Number(to || 0);
+    const controls = animate(start, target, {
       duration,
-      ease: [0.34, 1.56, 0.64, 1],
+      ease: [0.22, 1, 0.36, 1],
       onUpdate(value) {
-        setDisplay(value);
+        const nextValue = target >= start ? Math.min(value, target) : Math.max(value, target);
+        setDisplay(nextValue);
       },
     });
     return () => controls.stop();

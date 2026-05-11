@@ -39,6 +39,11 @@
   color: var(--hm-text-secondary);
 }
 
+.formNotice {
+  margin: -8px 0 14px;
+  border-radius: var(--hm-radius-sm);
+}
+
 .eye {
   cursor: pointer;
   color: var(--hm-text-muted);

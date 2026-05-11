@@ -1,8 +1,9 @@
 import { Avatar, Button, Toast } from "antd-mobile";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppCard from "../../components/common/AppCard";
 import PageTransition from "../../components/common/PageTransition";
+import MotionNotice from "../../components/feedback/MotionNotice";
 import { useAppStore } from "../../store/AppStore";
 import { adviceApi, healthApi, profileApi } from "../../services/api";
 import { mapHealthRecord, mapProfile } from "../../utils/backendMappers";
@@ -14,15 +15,20 @@ function ProfilePage() {
     state: { user, recentEntries, recommendations },
     actions,
   } = useAppStore();
+  const [loadWarnings, setLoadWarnings] = useState([]);
 
   useEffect(() => {
     let active = true;
     Promise.allSettled([profileApi.getProfile(), healthApi.getRecentRecords({ days: 30 }), adviceApi.history()]).then(
       ([profileResult, recordsResult, adviceResult]) => {
         if (!active) return;
+        const warnings = [];
         if (profileResult.status === "fulfilled") actions.updateUser(mapProfile(profileResult.value));
+        else warnings.push(`档案信息加载失败：${profileResult.reason?.message || "请稍后重试"}`);
         if (recordsResult.status === "fulfilled") {
           actions.setRecentEntries((recordsResult.value.records || []).map(mapHealthRecord));
+        } else {
+          warnings.push(`健康记录加载失败：${recordsResult.reason?.message || "请稍后重试"}`);
         }
         if (adviceResult.status === "fulfilled") {
           actions.setRecommendations(
@@ -31,7 +37,10 @@ function ProfilePage() {
               time: item.createdAt,
             })),
           );
+        } else {
+          warnings.push(`AI 建议加载失败：${adviceResult.reason?.message || "请稍后重试"}`);
         }
+        setLoadWarnings(warnings);
       },
     );
 
@@ -61,6 +70,14 @@ function ProfilePage() {
   return (
     <PageTransition>
       <div className={styles.page}>
+        {loadWarnings.length > 0 && (
+          <div className={styles.noticeStack}>
+            {loadWarnings.map((warning) => (
+              <MotionNotice key={warning} color="info" content={warning} />
+            ))}
+          </div>
+        )}
+
         <section className={styles.hero}>
           <div className={styles.identity}>
             <Avatar src={user.avatar} className={styles.avatar} style={{ "--size": "76px" }} />

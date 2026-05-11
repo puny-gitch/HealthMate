@@ -76,6 +76,11 @@
   gap: 10px;
 }
 
+.inlineNotice {
+  margin-top: 12px;
+  border-radius: var(--hm-radius);
+}
+
 .placeholder,
 .parsing {
   min-height: 120px;
@@ -102,6 +107,40 @@
 
 .warningList {
   grid-column: 1 / -1;
+}
+
+.riskPreview {
+  display: grid;
+  gap: 12px;
+}
+
+.riskDetail {
+  padding: 16px;
+  border: 1px solid rgba(201, 95, 74, 0.18);
+  border-radius: var(--hm-radius);
+  background: rgba(255, 245, 242, 0.72);
+}
+
+.riskDetail strong {
+  display: block;
+  color: #9f3f31;
+  font-size: 15px;
+}
+
+.riskDetail p {
+  margin: 8px 0 0;
+  color: var(--hm-text-secondary);
+  line-height: 1.8;
+}
+
+.suggestionList {
+  margin: 10px 0 0;
+  padding: 10px 14px 10px 28px;
+  border: 1px solid rgba(255, 184, 77, 0.26);
+  border-radius: var(--hm-radius);
+  background: rgba(255, 247, 230, 0.72);
+  color: var(--hm-text-secondary);
+  line-height: 1.7;
 }
 
 .metricCard,

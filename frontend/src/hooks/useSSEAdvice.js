@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export function useSSEAdvice(url) {
+export function useSSEAdvice(url, { onAdvice } = {}) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [resumeHint, setResumeHint] = useState("");
@@ -38,6 +38,17 @@ export function useSSEAdvice(url) {
       source.addEventListener("message", (event) => {
         setText((prev) => prev + event.data);
       });
+      source.addEventListener("advice", (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload?.adviceText) {
+            setText(payload.adviceText);
+            onAdvice?.(payload.adviceText);
+          }
+        } catch {
+          setError("建议数据解析失败");
+        }
+      });
       source.onerror = () => {
         setResumeHint("网络波动，正在尝试断点续传...");
         setError("连接中断，已保留已生成内容");
@@ -52,7 +63,7 @@ export function useSSEAdvice(url) {
       setError("建议流加载失败，请稍后重试");
       setLoading(false);
     }
-  }, [close, url]);
+  }, [close, onAdvice, url]);
 
   useEffect(() => () => close(), [close]);
 

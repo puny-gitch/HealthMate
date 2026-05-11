@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { DotLoading } from "antd-mobile";
-import { motion } from "framer-motion";
+import { motion as Motion } from "framer-motion";
 import { useEffect } from "react";
 import { useAppStore } from "../store/AppStore";
 import { profileApi } from "../services/api";
@@ -50,7 +50,7 @@ export function AuthGuard() {
 
   if (token && !user.userId) {
     return (
-      <motion.div
+      <Motion.div
         className="app-loading-spinner"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -58,7 +58,7 @@ export function AuthGuard() {
       >
         <DotLoading color="primary" />
         <span>加载中...</span>
-      </motion.div>
+      </Motion.div>
     );
   }
 

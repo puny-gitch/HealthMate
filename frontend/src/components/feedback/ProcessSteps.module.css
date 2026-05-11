@@ -1,0 +1,59 @@
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.step {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--hm-border);
+  border-radius: 999px;
+  background: var(--hm-surface);
+  color: var(--hm-text-muted);
+  font-size: 12px;
+}
+
+.step span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.step em {
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.active {
+  border-color: rgba(47, 125, 111, 0.24);
+  background: var(--hm-primary-soft);
+  color: var(--hm-primary-strong);
+}
+
+.active span {
+  animation: stepPulse 1s ease-in-out infinite;
+}
+
+.done {
+  border-color: rgba(47, 125, 111, 0.18);
+  color: var(--hm-primary-strong);
+}
+
+@keyframes stepPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.65;
+  }
+
+  50% {
+    transform: scale(1.45);
+    opacity: 1;
+  }
+}

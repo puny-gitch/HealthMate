@@ -1,10 +1,13 @@
 import { Button, ProgressBar, Toast } from "antd-mobile";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion as Motion } from "framer-motion";
 import AppCard from "../../components/common/AppCard";
 import AnimatedCounter from "../../components/common/AnimatedCounter";
 import PageTransition from "../../components/common/PageTransition";
 import StaggerList from "../../components/common/StaggerList";
+import EmptyState from "../../components/feedback/EmptyState";
+import MotionNotice from "../../components/feedback/MotionNotice";
 import { useAppStore } from "../../store/AppStore";
 import { adviceApi, healthApi, taskApi } from "../../services/api";
 import { mapHealthRecord, mapTask, mapTrend } from "../../utils/backendMappers";
@@ -26,6 +29,8 @@ function DashboardPage() {
   } = useAppStore();
   const [expanded, setExpanded] = useState(false);
   const [completionRate, setCompletionRate] = useState(0);
+  const [loadWarnings, setLoadWarnings] = useState([]);
+  const [operationError, setOperationError] = useState("");
 
   const refreshTodayTasks = async () => {
     const result = await taskApi.today();
@@ -42,16 +47,23 @@ function DashboardPage() {
       adviceApi.history(),
     ]).then(([dashboardResult, taskResult, recordResult, adviceResult]) => {
       if (!active) return;
+      const warnings = [];
       if (dashboardResult.status === "fulfilled") {
         setCompletionRate(dashboardResult.value.completionRate || 0);
         actions.setMetrics("week", mapTrend(dashboardResult.value));
+      } else {
+        warnings.push(`首页概览加载失败：${dashboardResult.reason?.message || "请稍后重试"}`);
       }
       if (taskResult.status === "fulfilled") {
         actions.setTasks((taskResult.value.tasks || []).map((task) => mapTask(task, "today")));
         setCompletionRate(taskResult.value.completionRate || 0);
+      } else {
+        warnings.push(`今日任务加载失败：${taskResult.reason?.message || "请稍后重试"}`);
       }
       if (recordResult.status === "fulfilled") {
         actions.setRecentEntries((recordResult.value.records || []).map(mapHealthRecord));
+      } else {
+        warnings.push(`最近记录加载失败：${recordResult.reason?.message || "请稍后重试"}`);
       }
       if (adviceResult.status === "fulfilled") {
         actions.setRecommendations(
@@ -60,7 +72,10 @@ function DashboardPage() {
             time: item.createdAt,
           })),
         );
+      } else {
+        warnings.push(`AI 建议加载失败：${adviceResult.reason?.message || "请稍后重试"}`);
       }
+      setLoadWarnings(warnings);
     });
 
     return () => {
@@ -106,15 +121,27 @@ function DashboardPage() {
     try {
       await taskApi.check({ taskId: task.id, status: nextCompleted ? 1 : 0 });
       await refreshTodayTasks();
+      setOperationError("");
       Toast.show({ content: nextCompleted ? "已完成" : "已恢复为待完成" });
     } catch (error) {
-      Toast.show({ content: error.message || "任务更新失败" });
+      const message = error.message || "任务更新失败";
+      setOperationError(message);
+      Toast.show({ content: message });
     }
   };
 
   return (
     <PageTransition>
       <div className={styles.page}>
+        {(loadWarnings.length > 0 || operationError) && (
+          <div className={styles.noticeStack}>
+            <MotionNotice color="alert" content={operationError} />
+            {loadWarnings.map((warning) => (
+              <MotionNotice key={warning} color="info" content={warning} />
+            ))}
+          </div>
+        )}
+
         <section className={styles.hero}>
           <div className={styles.heroIntro}>
             <span className="hm-page-eyebrow">首页概览</span>
@@ -168,12 +195,17 @@ function DashboardPage() {
 
         <AppCard title="今日任务">
           <div className={styles.taskList}>
-            {!todayTasks.length && <p className="hm-section-copy">暂无任务，可进入 AI 建议页生成。</p>}
-            <StaggerList as="div" className={styles.taskListInner}>
+            {!todayTasks.length && <EmptyState title="暂无今日任务" description="可进入 AI 建议页生成候选任务。" />}
+            <StaggerList className={styles.taskListInner}>
               {todayTasks.map((task) => {
                 const ratio = task.target ? (task.progress / task.target) * 100 : 0;
                 return (
-                  <article key={task.id} className={`${styles.taskItem} ${task.completed ? styles.done : ""}`}>
+                  <Motion.article
+                    key={task.id}
+                    layout
+                    whileTap={{ scale: 0.985 }}
+                    className={`${styles.taskItem} ${task.completed ? styles.done : ""}`}
+                  >
                     <div className={styles.taskTop}>
                       <div>
                         <h3>{task.title}</h3>
@@ -196,7 +228,7 @@ function DashboardPage() {
                       </span>
                     </div>
                     <ProgressBar percent={Math.min(ratio, 100)} />
-                  </article>
+                  </Motion.article>
                 );
               })}
             </StaggerList>

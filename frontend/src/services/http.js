@@ -24,18 +24,27 @@ http.interceptors.response.use(
     const payload = response.data;
     if (payload && typeof payload === "object" && "code" in payload) {
       if (payload.code === 0) return payload.data;
-      return Promise.reject(new Error(payload.message || "请求失败"));
+      const businessError = new Error(payload.message || "请求失败");
+      businessError.code = payload.code;
+      businessError.data = payload.data;
+      businessError.status = response.status;
+      return Promise.reject(businessError);
     }
     return payload;
   },
   (error) => {
     const status = error.response?.status;
-    const message = error.response?.data?.message || error.message || "请求失败";
+    const payload = error.response?.data;
+    const message = payload?.message || error.message || "请求失败";
     if (status === 401) {
       localStorage.removeItem("healthmate_token");
       window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
     }
-    return Promise.reject(new Error(message));
+    const normalizedError = new Error(message);
+    normalizedError.code = payload?.code || status;
+    normalizedError.data = payload?.data;
+    normalizedError.status = status;
+    return Promise.reject(normalizedError);
   },
 );
 

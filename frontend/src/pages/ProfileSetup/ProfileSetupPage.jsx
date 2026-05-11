@@ -3,6 +3,7 @@ import { Button, Form, Input, Selector, TextArea, Toast } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/common/PageHeader";
 import PageTransition from "../../components/common/PageTransition";
+import MotionNotice from "../../components/feedback/MotionNotice";
 import { useAppStore } from "../../store/AppStore";
 import { profileApi } from "../../services/api";
 import { mapProfile } from "../../utils/backendMappers";
@@ -24,6 +25,8 @@ function ProfileSetupPage() {
     actions,
   } = useAppStore();
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [savedText, setSavedText] = useState("");
 
   const canSubmit = useMemo(
     () => values?.gender?.[0] != null && Boolean(values?.height && values?.weight && values?.goal?.[0]),
@@ -34,6 +37,8 @@ function ProfileSetupPage() {
     const formValues = form.getFieldsValue();
     try {
       setSaving(true);
+      setSaveError("");
+      setSavedText("");
       const profile = await profileApi.saveProfile({
         gender: Number(formValues.gender?.[0]),
         height: Number(formValues.height),
@@ -44,9 +49,15 @@ function ProfileSetupPage() {
       });
       actions.updateUser(mapProfile(profile));
       Toast.show({ content: "档案保存成功" });
+      setSavedText("已保存");
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 420);
+      });
       navigate("/dashboard");
     } catch (error) {
-      Toast.show({ content: error.message || "档案保存失败" });
+      const message = error.message || "档案保存失败";
+      setSaveError(message);
+      Toast.show({ content: message });
     } finally {
       setSaving(false);
     }
@@ -71,6 +82,7 @@ function ProfileSetupPage() {
         </div>
 
         <section className={styles.formShell}>
+          <MotionNotice className={styles.formNotice} color="alert" content={saveError} />
           <Form
             form={form}
             initialValues={{
@@ -85,7 +97,7 @@ function ProfileSetupPage() {
             className={styles.form}
             footer={
               <Button color="primary" block loading={saving} disabled={!canSubmit} onClick={handleSave}>
-                保存档案
+                {savedText || "保存档案"}
               </Button>
             }
           >

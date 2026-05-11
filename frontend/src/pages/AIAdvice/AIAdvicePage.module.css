@@ -61,6 +61,11 @@
   color: var(--hm-accent);
 }
 
+.inlineNotice {
+  margin-bottom: 10px;
+  border-radius: var(--hm-radius-sm);
+}
+
 .statusBadge {
   display: inline-flex;
   align-items: center;

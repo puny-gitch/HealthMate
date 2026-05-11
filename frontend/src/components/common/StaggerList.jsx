@@ -1,12 +1,5 @@
-import { motion } from "framer-motion";
+import { motion as Motion } from "framer-motion";
 import { Children, isValidElement } from "react";
-
-const container = {
-  hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.06, delayChildren: 0.08 },
-  },
-};
 
 const item = {
   hidden: { opacity: 0, y: 14 },
@@ -17,7 +10,7 @@ const item = {
   },
 };
 
-function StaggerList({ children, className, as: Tag = "div", stagger = 0.06 }) {
+function StaggerList({ children, className, stagger = 0.06 }) {
   const customContainer = {
     hidden: {},
     visible: {
@@ -26,22 +19,21 @@ function StaggerList({ children, className, as: Tag = "div", stagger = 0.06 }) {
   };
 
   return (
-    <motion.div
+    <Motion.div
       className={className}
       variants={customContainer}
       initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, margin: "-30px" }}
+      animate="visible"
     >
-      {Children.map(children, (child) => {
+      {Children.map(children, (child, index) => {
         if (!isValidElement(child)) return child;
         return (
-          <motion.div variants={item}>
+          <Motion.div variants={item} key={child.key ?? index}>
             {child}
-          </motion.div>
+          </Motion.div>
         );
       })}
-    </motion.div>
+    </Motion.div>
   );
 }
 

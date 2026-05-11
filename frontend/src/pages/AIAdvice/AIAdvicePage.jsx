@@ -2,9 +2,13 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Avatar, Button, Checkbox, DotLoading, NoticeBar, Toast } from "antd-mobile";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion as Motion } from "framer-motion";
 import AppCard from "../../components/common/AppCard";
 import PageTransition from "../../components/common/PageTransition";
 import StaggerList from "../../components/common/StaggerList";
+import EmptyState from "../../components/feedback/EmptyState";
+import MotionNotice from "../../components/feedback/MotionNotice";
+import ProcessSteps from "../../components/feedback/ProcessSteps";
 import TypingStream from "../../components/feedback/TypingStream";
 import { useSSEAdvice } from "../../hooks/useSSEAdvice";
 import { useAppStore } from "../../store/AppStore";
@@ -12,6 +16,8 @@ import { adviceApi, taskApi } from "../../services/api";
 import { API_BASE_URL } from "../../services/http";
 import { mapTask } from "../../utils/backendMappers";
 import styles from "./AIAdvicePage.module.css";
+
+const adviceSteps = ["读取最近记录", "生成健康建议", "整理候选任务"];
 
 function AIAdvicePage() {
   const navigate = useNavigate();
@@ -24,12 +30,23 @@ function AIAdvicePage() {
   const [selectedDrafts, setSelectedDrafts] = useState([]);
   const [generatingTasks, setGeneratingTasks] = useState(false);
   const [addingTasks, setAddingTasks] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [taskError, setTaskError] = useState("");
+  const [taskSuccess, setTaskSuccess] = useState("");
   const sseUrl = token ? `${API_BASE_URL}/advice/stream?token=${encodeURIComponent(token)}` : "";
   const refreshTodayTasks = useCallback(async () => {
     const result = await taskApi.today();
     actions.setTasks((result.tasks || []).map((task) => mapTask(task, "today")));
   }, [actions]);
-  const { text, loading, error, resumeHint, connect } = useSSEAdvice(sseUrl);
+  const handleAdviceComplete = useCallback(
+    (adviceText) => {
+      if (!adviceText || savedTextRef.current === adviceText) return;
+      savedTextRef.current = adviceText;
+      actions.addRecommendation(adviceText);
+    },
+    [actions],
+  );
+  const { text, loading, error, resumeHint, connect } = useSSEAdvice(sseUrl, { onAdvice: handleAdviceComplete });
 
   useEffect(() => {
     connect();
@@ -41,6 +58,7 @@ function AIAdvicePage() {
       .history()
       .then((history) => {
         if (!active) return;
+        setHistoryError("");
         actions.setRecommendations(
           (history || []).map((item) => ({
             content: item.adviceText,
@@ -48,7 +66,10 @@ function AIAdvicePage() {
           })),
         );
       })
-      .catch(() => {});
+      .catch((historyLoadError) => {
+        if (!active) return;
+        setHistoryError(historyLoadError.message || "历史建议加载失败，当前展示本地缓存内容。");
+      });
 
     return () => {
       active = false;
@@ -78,32 +99,39 @@ function AIAdvicePage() {
   const generateTaskPreview = async () => {
     try {
       setGeneratingTasks(true);
+      setTaskError("");
+      setTaskSuccess("");
       const result = await taskApi.generatePreview({ targetDate: today, maxTasks: 3 });
       setTaskPreview(result);
-      setSelectedDrafts((result.candidates || []).map((task) => task.draftId));
+      setSelectedDrafts((result.candidates || []).map((task, index) => task.draftId || `${task.taskContent}-${index}`));
       if (!result.candidates?.length) {
+        setTaskError("后端暂未生成可加入的候选任务，请先补充健康记录或稍后再试。");
         Toast.show({ content: "暂无可加入的候选任务。" });
       }
     } catch (previewError) {
-      Toast.show({
-        content: previewError.message?.includes("404")
+      const message = previewError.message?.includes("404")
           ? "当前后端未启用任务候选接口，请重启最新后端服务。"
-          : previewError.message || "候选任务生成失败",
-      });
+          : previewError.message || "候选任务生成失败";
+      setTaskError(message);
+      Toast.show({ content: message });
     } finally {
       setGeneratingTasks(false);
     }
   };
 
   const addSelectedTasks = async () => {
-    const selectedTasks = (taskPreview?.candidates || []).filter((task) => selectedDrafts.includes(task.draftId));
+    const selectedTasks = (taskPreview?.candidates || []).filter((task, index) =>
+      selectedDrafts.includes(task.draftId || `${task.taskContent}-${index}`),
+    );
     if (!selectedTasks.length) {
       Toast.show({ content: "请至少选择一个候选任务。" });
       return;
     }
     try {
       setAddingTasks(true);
-      await taskApi.addSelected({
+      setTaskError("");
+      setTaskSuccess("");
+      const result = await taskApi.addSelected({
         targetDate: taskPreview.targetDate || today,
         tasks: selectedTasks.map((task) => ({
           taskContent: task.taskContent,
@@ -114,9 +142,16 @@ function AIAdvicePage() {
       await refreshTodayTasks();
       setTaskPreview(null);
       setSelectedDrafts([]);
-      Toast.show({ content: "任务已加入今日列表" });
+      const archivedCount = result.archivedUnfinishedTaskCount || 0;
+      const skippedText = result.skippedReasons?.length ? `，${result.skippedReasons.join("；")}` : "";
+      const message = `任务已加入今日列表${archivedCount ? `，已归档 ${archivedCount} 个未完成任务` : ""}${skippedText}`;
+      setTaskSuccess(message);
+      if (result.skippedReasons?.length) setTaskError(result.skippedReasons.join("；"));
+      Toast.show({ content: message });
     } catch (addError) {
-      Toast.show({ content: addError.message || "任务加入失败" });
+      const message = addError.message || "任务加入失败";
+      setTaskError(message);
+      Toast.show({ content: message });
     } finally {
       setAddingTasks(false);
     }
@@ -127,9 +162,12 @@ function AIAdvicePage() {
     try {
       await taskApi.check({ taskId: task.id, status: nextCompleted ? 1 : 0 });
       await refreshTodayTasks();
+      setTaskError("");
       Toast.show({ content: nextCompleted ? "已打卡" : "已恢复未完成状态" });
     } catch (taskError) {
-      Toast.show({ content: taskError.message || "任务更新失败" });
+      const message = taskError.message || "任务更新失败";
+      setTaskError(message);
+      Toast.show({ content: message });
     }
   };
 
@@ -160,7 +198,15 @@ function AIAdvicePage() {
             </div>
           )}
           {resumeHint && <div className={styles.warn}>{resumeHint}</div>}
-          {error && <div className={styles.warn}>{error}</div>}
+          {(loading || generatingTasks || addingTasks) && (
+            <ProcessSteps
+              steps={adviceSteps}
+              active={addingTasks ? 2 : generatingTasks ? 2 : loading ? 1 : 0}
+              done={!loading && !generatingTasks && !addingTasks}
+            />
+          )}
+          <MotionNotice className={styles.inlineNotice} color="alert" content={error} />
+          <MotionNotice className={styles.inlineNotice} color="info" content={historyError} />
           <TypingStream text={displayText} loading={loading} />
           <div className={styles.actionBar}>
             <Button color="primary" onClick={forceGenerate}>
@@ -173,7 +219,9 @@ function AIAdvicePage() {
         </AppCard>
 
         <AppCard title="任务候选">
-          {!taskPreview && <p className="hm-section-copy">点击"生成任务"后，可选择候选任务加入今日任务列表。</p>}
+          {!taskPreview && <EmptyState title="暂无候选任务" description="点击生成任务后，可选择候选任务加入今日任务列表。" />}
+          <MotionNotice className={styles.inlineNotice} color="alert" content={taskError} />
+          <MotionNotice className={styles.inlineNotice} color="success" content={taskSuccess} />
           {taskPreview?.skippedReasons?.length > 0 && (
             <div className={styles.noticeStack}>
               {taskPreview.skippedReasons.map((reason) => (
@@ -185,9 +233,11 @@ function AIAdvicePage() {
             <>
               <Checkbox.Group value={selectedDrafts} onChange={setSelectedDrafts}>
                 <StaggerList className={styles.taskList}>
-                  {taskPreview.candidates.map((task) => (
-                    <label key={task.draftId} className={styles.task}>
-                      <Checkbox value={task.draftId} />
+                  {taskPreview.candidates.map((task, index) => {
+                    const draftValue = task.draftId || `${task.taskContent}-${index}`;
+                    return (
+                    <label key={draftValue} className={styles.task}>
+                      <Checkbox value={draftValue} />
                       <div>
                         <h4>{task.taskContent}</h4>
                         <p>{task.aiReason}</p>
@@ -197,7 +247,8 @@ function AIAdvicePage() {
                         </span>
                       </div>
                     </label>
-                  ))}
+                    );
+                  })}
                 </StaggerList>
               </Checkbox.Group>
               <div className={styles.actionBar}>
@@ -212,7 +263,14 @@ function AIAdvicePage() {
         <AppCard title="今日任务">
           <div className={styles.taskList}>
             {todoTasks.map((task) => (
-              <div key={task.id} className={styles.task}>
+              <Motion.div
+                key={task.id}
+                className={styles.task}
+                layout
+                whileTap={{ scale: 0.98 }}
+                animate={{ backgroundColor: task.completed ? "rgba(229, 242, 239, 0.95)" : "rgba(248, 250, 249, 1)" }}
+                transition={{ duration: 0.22 }}
+              >
                 <div>
                   <h4>{task.title}</h4>
                   <p>AI 建议缘由：{task.reason}</p>
@@ -224,7 +282,7 @@ function AIAdvicePage() {
                 >
                   {task.completed ? "已打卡" : "去执行"}
                 </Button>
-              </div>
+              </Motion.div>
             ))}
           </div>
         </AppCard>
@@ -238,7 +296,7 @@ function AIAdvicePage() {
               </article>
             ))}
           </StaggerList>
-          {!history.length && <p className="hm-section-copy">暂无历史建议。</p>}
+          {!history.length && <EmptyState title="暂无历史建议" description="生成建议后，历史记录会显示在这里。" />}
         </AppCard>
 
         <Button className="hm-ghost-action" fill="outline" onClick={() => navigate("/dashboard")}>

@@ -85,6 +85,11 @@
   padding: 18px;
 }
 
+.formNotice {
+  margin-bottom: 12px;
+  border-radius: var(--hm-radius-sm);
+}
+
 .form {
   display: grid;
   gap: 14px;
