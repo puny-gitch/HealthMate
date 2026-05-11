@@ -8,6 +8,7 @@ from app.services.task_generation import TaskGenerationService
 def test_risk_detector():
     svc = RiskWordService()
     assert svc.contains_high_risk("今天有胸痛和呼吸困难")
+    assert svc.contains_high_risk("今天胃痛还发烧")
     assert not svc.contains_high_risk("今天慢跑20分钟")
 
 
@@ -30,9 +31,18 @@ def test_health_ai_parse_rule_fallback_preview():
     svc = HealthAIParseService()
     result = svc.parse("中午吃了鸡胸肉沙拉，晚上跑步30分钟，昨晚睡了6小时")
     assert result.parse_id
+    assert result.should_save
     assert result.preview_data["sleepMinutes"] == 360
     assert result.preview_data["recordType"] in {"mixed", "sleep"}
     assert "previewData" not in result.preview_data
+
+
+def test_health_ai_parse_rule_fallback_rejects_empty_record():
+    svc = HealthAIParseService()
+    result = svc.parse("今天还行")
+    assert not result.should_save
+    assert result.failure_reason
+    assert result.preview_data == {}
 
 
 def test_task_generation_filters_completed_similarity():

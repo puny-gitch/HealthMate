@@ -38,7 +38,7 @@ summary_service = SummaryService(health_repository, summary_repository)
 
 def _build_health_record(payload: HealthDataSubmitReq, user_id: int) -> HealthRecord:
     if payload.rawInput and risk_service.contains_high_risk(payload.rawInput):
-        raise AppException("检测到高危词汇，请立即就医", code=40020, status_code=400)
+        raise AppException(risk_service.warning_message(payload.rawInput), code=40020, status_code=400)
 
     parsed = parse_service.parse_from_text(payload.rawInput or "")
     sleep_minutes = payload.sleepMinutes
@@ -55,6 +55,12 @@ def _build_health_record(payload: HealthDataSubmitReq, user_id: int) -> HealthRe
     parse_warnings = payload.parseWarnings or []
     if confidence == "low" and not parse_warnings:
         parse_warnings = ["记录信息可信度较低，请确认后保存。"]
+    if not _has_effective_record_data(sleep_minutes, intake, burn, payload.nutritionDetails, payload.exerciseDetails, tags):
+        raise AppException(
+            "未识别出可保存的健康记录。请补充睡眠时长、饮食内容、运动类型/时长或热量等信息。",
+            code=40021,
+            status_code=400,
+        )
 
     return HealthRecord(
         user_id=user_id,
@@ -70,6 +76,26 @@ def _build_health_record(payload: HealthDataSubmitReq, user_id: int) -> HealthRe
         health_tags=tags,
         confidence=confidence,
         parse_warnings=parse_warnings,
+    )
+
+
+def _has_effective_record_data(
+    sleep_minutes: int | None,
+    intake: int | None,
+    burn: int | None,
+    nutrition_details: dict | None,
+    exercise_details: dict | None,
+    tags: list[str] | None,
+) -> bool:
+    return any(
+        [
+            sleep_minutes is not None,
+            intake is not None,
+            burn is not None,
+            bool(nutrition_details and nutrition_details.get("foods")),
+            bool(exercise_details and exercise_details.get("items")),
+            bool(tags),
+        ]
     )
 
 
@@ -113,7 +139,7 @@ def parse_health_input(
     _ = (user_id, db)
     raw_input = payload.rawInput or ""
     if risk_service.contains_high_risk(raw_input):
-        raise AppException("检测到高危词汇，请立即就医", code=40020, status_code=400)
+        raise AppException(risk_service.warning_message(raw_input), code=40020, status_code=400)
     parsed = parse_service.parse_from_text(raw_input)
     return api_success(
         {
@@ -137,17 +163,34 @@ def parse_health_input_ai(
 ):
     _ = (user_id, db)
     if risk_service.contains_high_risk(payload.rawInput):
-        raise AppException("检测到高危词汇，请立即就医", code=40020, status_code=400)
+        message = risk_service.warning_message(payload.rawInput)
+        return api_success(
+            {
+                "parseId": None,
+                "confidence": "low",
+                "confidenceScore": 0,
+                "shouldSave": False,
+                "failureReason": message,
+                "suggestions": ["请及时就医或咨询专业医生。", "病痛症状不作为普通健康记录保存。"],
+                "warnings": [message],
+                "previewData": {},
+            },
+            message,
+            code=40020,
+        )
     result = ai_parse_service.parse(payload.rawInput, payload.recordedAt, payload.recordDate)
     return api_success(
         {
             "parseId": result.parse_id,
             "confidence": result.confidence,
             "confidenceScore": result.confidence_score,
+            "shouldSave": result.should_save,
+            "failureReason": result.failure_reason,
+            "suggestions": result.suggestions,
             "warnings": result.warnings,
             "previewData": result.preview_data,
         },
-        "解析成功" if result.confidence != "low" else "解析可信度较低，请确认后提交",
+        "解析成功" if result.should_save else (result.failure_reason or "解析失败，请优化输入后重试"),
     )
 
 
@@ -161,6 +204,8 @@ def confirm_health_record(
     data.setdefault("recordDate", payload.recordDate)
     data.setdefault("recordedAt", payload.recordedAt)
     data.setdefault("rawInput", payload.rawInput)
+    if data.get("rawInput") and risk_service.contains_high_risk(data["rawInput"]):
+        raise AppException(risk_service.warning_message(data["rawInput"]), code=40020, status_code=400)
     record_payload = HealthDataSubmitReq.model_validate(data)
     record = _build_health_record(record_payload, user_id)
     created = health_repository.create(db, record)

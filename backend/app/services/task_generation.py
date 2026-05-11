@@ -3,8 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from difflib import SequenceMatcher
+import json
 from uuid import uuid4
 
+import httpx
+
+from app.core.config import get_settings
 from app.models.daily_task import DailyTask
 from app.services.task import TaskService
 
@@ -23,17 +27,17 @@ class TaskGenerationService:
         self.task_service = TaskService()
 
     def generate_candidates(self, context: dict, max_tasks: int = 3) -> tuple[list[TaskCandidate], list[str]]:
-        completed = context.get("completed_tasks", [])
-        pending = context.get("pending_tasks", [])
-        candidates = self._build_rule_candidates(context)
+        completed_contents = self._task_contents(context, "today_completed_task_contents", "completed_tasks")
+        pending_contents = self._task_contents(context, "today_unfinished_task_contents", "pending_tasks")
+        candidates = self._build_ai_candidates(context, max_tasks) or self._build_rule_candidates(context)
         result: list[TaskCandidate] = []
         skipped: list[str] = []
 
         for candidate in candidates:
-            if self.is_similar_to_any(candidate.task_content, [task.task_content for task in completed]):
+            if self.is_similar_to_any(candidate.task_content, completed_contents):
                 skipped.append(f"已完成任务中已有相似任务：{candidate.task_content}")
                 continue
-            similar_pending = self._find_similar(candidate.task_content, [task.task_content for task in pending])
+            similar_pending = self._find_similar(candidate.task_content, pending_contents)
             if similar_pending:
                 optimized = self._optimize_pending_task(candidate, similar_pending)
                 if not self.is_similar_to_any(optimized.task_content, [item.task_content for item in result]):
@@ -51,7 +55,7 @@ class TaskGenerationService:
     def build_context(
         self,
         user,
-        recent_records: list,
+        health_records: list,
         today_tasks: list[DailyTask],
         history_tasks: list[DailyTask],
         latest_advice,
@@ -62,28 +66,44 @@ class TaskGenerationService:
         pending = [task for task in today_tasks if task.status == 0]
         return {
             "target_date": target_date.isoformat(),
-            "health_goal": user.health_goal if user else None,
-            "injury_history": user.injury_history if user else None,
-            "allergy_history": user.allergy_history if user else None,
-            "medical_history": user.medical_history if user else None,
-            "recent_records": recent_records,
-            "completed_tasks": completed,
-            "pending_tasks": pending,
+            "profile": {
+                "userId": user.user_id if user else None,
+                "gender": user.gender if user else None,
+                "height": float(user.height) if user and user.height is not None else None,
+                "weight": float(user.weight) if user and user.weight is not None else None,
+                "healthGoal": user.health_goal if user else None,
+                "injuryHistory": user.injury_history if user else None,
+                "allergyHistory": user.allergy_history if user else None,
+                "medicalHistory": user.medical_history if user else None,
+            },
+            "health_records": [self._serialize_health_record(record) for record in health_records],
+            "all_tasks": [self._serialize_task(task) for task in history_tasks],
+            "today_completed_tasks": [self._serialize_task(task) for task in completed],
+            "today_unfinished_tasks": [self._serialize_task(task) for task in pending],
+            "today_completed_task_contents": [task.task_content for task in completed],
+            "today_unfinished_task_contents": [task.task_content for task in pending],
             "history_completion_rate": self.task_service.completion_rate(history_tasks),
             "latest_advice": latest_advice.advice_text if latest_advice else None,
-            "latest_summary": latest_summary.summary_content if latest_summary else None,
+            "latest_summary": {
+                "summaryContent": latest_summary.summary_content,
+                "healthTrend": latest_summary.health_trend,
+                "summaryDate": latest_summary.summary_date.isoformat(),
+            }
+            if latest_summary
+            else None,
         }
 
     def _build_rule_candidates(self, context: dict) -> list[TaskCandidate]:
-        goal = context.get("health_goal") or "保持健康"
-        injury = context.get("injury_history") or ""
-        records = context.get("recent_records") or []
-        avg_sleep = self._avg([record.sleep_minutes for record in records if record.sleep_minutes is not None])
-        intake_total = sum(record.estimated_intake_kcal or 0 for record in records)
-        burn_total = sum(record.estimated_burn_kcal or 0 for record in records)
+        profile = context.get("profile") or {}
+        goal = profile.get("healthGoal") or context.get("health_goal") or "保持健康"
+        injury = profile.get("injuryHistory") or context.get("injury_history") or ""
+        records = context.get("health_records") or context.get("recent_records") or []
+        avg_sleep = self._avg([record.get("sleepMinutes") for record in records if record.get("sleepMinutes") is not None])
+        intake_total = sum(record.get("estimatedIntakeKcal") or 0 for record in records)
+        burn_total = sum(record.get("estimatedBurnKcal") or 0 for record in records)
         latest_tags = []
         for record in records[-5:]:
-            latest_tags.extend(record.health_tags or [])
+            latest_tags.extend(record.get("healthTags") or [])
 
         candidates: list[TaskCandidate] = []
         if avg_sleep and avg_sleep < 420:
@@ -131,6 +151,66 @@ class TaskGenerationService:
             )
         )
         return candidates
+
+    def _build_ai_candidates(self, context: dict, max_tasks: int) -> list[TaskCandidate]:
+        settings = get_settings()
+        if settings.ai_mode != "llm" or not settings.llm_api_base or not settings.llm_api_key:
+            return []
+        try:
+            response = httpx.post(
+                self._chat_completions_url(settings.llm_api_base),
+                headers={
+                    "Authorization": f"Bearer {settings.llm_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.llm_model,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "你是健康习惯任务生成器，只输出 JSON。"
+                                "必须基于用户档案、全部健康记录、全部任务及状态生成候选任务。"
+                                "严禁生成与 today_completed_tasks 中已完成任务语义相似的任务。"
+                                "如果与 today_unfinished_tasks 相似，应生成优化版任务，降低难度或调整时间。"
+                                "不要输出疾病诊断、处方或高风险医疗建议。"
+                            ),
+                        },
+                        {
+                            "role": "user",
+                            "content": (
+                                "请生成 1 到 "
+                                f"{max_tasks} 个候选任务，返回 JSON："
+                                "{\"candidates\":[{\"taskContent\":\"...\",\"aiReason\":\"...\","
+                                "\"difficulty\":\"easy|medium|hard\",\"similarityWarning\":false}],"
+                                "\"skippedReasons\":[\"...\"]}。"
+                                "任务必须短小、可执行、当天能完成。"
+                                "上下文如下："
+                                f"{json.dumps(context, ensure_ascii=False, default=str)}"
+                            ),
+                        },
+                    ],
+                    "temperature": 0.4,
+                    "response_format": {"type": "json_object"},
+                },
+                timeout=settings.llm_timeout_seconds,
+            )
+            response.raise_for_status()
+            payload = json.loads(response.json()["choices"][0]["message"]["content"])
+            raw_candidates = payload.get("candidates") or []
+            return [
+                TaskCandidate(
+                    str(item.get("draftId") or uuid4()),
+                    str(item.get("taskContent") or "").strip(),
+                    str(item.get("aiReason") or "基于用户历史健康数据生成").strip(),
+                    str(item.get("difficulty") or "easy").strip(),
+                    bool(item.get("similarityWarning", False)),
+                )
+                for item in raw_candidates
+                if isinstance(item, dict) and str(item.get("taskContent") or "").strip()
+            ][:max_tasks]
+        except Exception:
+            return []
 
     def _optimize_pending_task(self, candidate: TaskCandidate, pending_content: str) -> TaskCandidate:
         return TaskCandidate(
@@ -186,3 +266,42 @@ class TaskGenerationService:
         if not values:
             return 0
         return int(sum(values) / len(values))
+
+    def _task_contents(self, context: dict, new_key: str, legacy_key: str) -> list[str]:
+        if context.get(new_key):
+            return list(context[new_key])
+        legacy = context.get(legacy_key) or []
+        return [task.task_content for task in legacy if hasattr(task, "task_content")]
+
+    def _serialize_health_record(self, record) -> dict:
+        return {
+            "recordId": record.record_id,
+            "recordDate": record.record_date.isoformat(),
+            "recordedAt": record.recorded_at.isoformat(),
+            "recordType": record.record_type,
+            "rawInput": record.raw_input,
+            "sleepMinutes": record.sleep_minutes,
+            "estimatedIntakeKcal": record.estimated_intake_kcal,
+            "estimatedBurnKcal": record.estimated_burn_kcal,
+            "nutritionDetails": record.nutrition_details,
+            "exerciseDetails": record.exercise_details,
+            "healthTags": record.health_tags or [],
+            "confidence": record.confidence,
+        }
+
+    def _serialize_task(self, task: DailyTask) -> dict:
+        return {
+            "taskId": task.task_id,
+            "taskDate": task.task_date.isoformat(),
+            "taskContent": task.task_content,
+            "status": task.status,
+            "statusText": {0: "unfinished", 1: "completed", 2: "archived"}.get(task.status, "unknown"),
+            "aiReason": task.ai_reason,
+            "updatedAt": task.updated_at.isoformat(),
+        }
+
+    def _chat_completions_url(self, api_base: str) -> str:
+        base = api_base.rstrip("/")
+        if base.endswith("/chat/completions"):
+            return base
+        return f"{base}/chat/completions"

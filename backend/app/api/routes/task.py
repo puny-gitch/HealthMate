@@ -111,14 +111,14 @@ def generate_task_preview(
 ):
     target_date = payload.targetDate or date.today()
     user = user_repository.get_by_id(db, user_id)
-    recent_records = health_repository.get_recent(db, user_id, 30)
+    health_records = health_repository.list_all(db, user_id)
     today_tasks = task_repository.list_by_date(db, user_id, target_date)
     history_tasks = task_repository.list_by_date(db, user_id)
     latest_advice = advice_repository.get_latest(db, user_id)
     latest_summary = summary_repository.get_latest(db, user_id, "week")
     context = task_generation_service.build_context(
         user=user,
-        recent_records=recent_records,
+        health_records=health_records,
         today_tasks=today_tasks,
         history_tasks=history_tasks,
         latest_advice=latest_advice,
@@ -168,9 +168,11 @@ def add_selected_tasks(
                 status=0,
             )
         )
+    archived_count = task_repository.archive_unfinished_by_date(db, user_id, target_date)
     created = task_repository.upsert_for_date(db, user_id, target_date, tasks) if tasks else []
     return api_success(
         {
+            "archivedUnfinishedTaskCount": archived_count,
             "tasks": [
                 {
                     "taskId": task.task_id,

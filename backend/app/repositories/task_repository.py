@@ -23,6 +23,8 @@ class TaskRepository:
             existing = existing_by_content.get(task.task_content)
             if existing:
                 existing.ai_reason = task.ai_reason
+                if existing.status != 1:
+                    existing.status = task.status
                 result.append(existing)
             else:
                 db.add(task)
@@ -48,6 +50,20 @@ class TaskRepository:
         stmt = (
             update(DailyTask)
             .where(DailyTask.task_date < cutoff_date, DailyTask.status.in_([0, 1]))
+            .values(status=2)
+        )
+        result = db.execute(stmt)
+        db.commit()
+        return int(result.rowcount or 0)
+
+    def archive_unfinished_by_date(self, db: Session, user_id: int, target_date: date) -> int:
+        stmt = (
+            update(DailyTask)
+            .where(
+                DailyTask.user_id == user_id,
+                DailyTask.task_date == target_date,
+                DailyTask.status == 0,
+            )
             .values(status=2)
         )
         result = db.execute(stmt)

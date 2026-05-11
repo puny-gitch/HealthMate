@@ -44,6 +44,14 @@ class HealthRepository:
         )
         return db.scalar(stmt)
 
+    def list_all(self, db: Session, user_id: int) -> list[HealthRecord]:
+        stmt = (
+            select(HealthRecord)
+            .where(HealthRecord.user_id == user_id)
+            .order_by(HealthRecord.recorded_at.asc(), HealthRecord.record_id.asc())
+        )
+        return list(db.scalars(stmt).all())
+
     def get_by_range(self, db: Session, user_id: int, start: date, end: date) -> list[HealthRecord]:
         stmt = (
             select(HealthRecord)

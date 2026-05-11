@@ -19,6 +19,9 @@ class HealthParsePreview:
     confidence_score: float
     warnings: list[str]
     preview_data: dict
+    should_save: bool
+    failure_reason: str | None
+    suggestions: list[str]
 
 
 class HealthAIParseService:
@@ -50,22 +53,33 @@ class HealthAIParseService:
                         "role": "system",
                         "content": (
                             "你是健康记录结构化解析器，只输出 JSON。"
-                            "字段必须面向数据库落库，不要输出诊断或医疗建议。"
-                            "如果信息不足，保留 null 并给 warnings。"
+                            "你的目标是把用户原始输入解析成 t_health_record 可落库字段。"
+                            "如果没有明确睡眠、饮食、运动、热量、标签等有效信息，shouldSave=false，previewData={}，并给出失败原因和优化建议。"
+                            "不要输出诊断或医疗建议；涉及病痛症状应标注不可保存。"
                         ),
                     },
                     {
                         "role": "user",
                         "content": (
-                            "将用户输入解析为 JSON："
+                            "数据库表 t_health_record 字段："
+                            "record_id 自增主键；user_id 当前登录用户；record_date 日期；recorded_at 记录时间；"
+                            "record_type 可选 diet/exercise/sleep/mixed/other；raw_input 原文；"
+                            "estimated_intake_kcal 摄入千卡；estimated_burn_kcal 消耗千卡；sleep_minutes 睡眠分钟；"
+                            "nutrition_details JSON，建议包含 foods、mealType、amounts、estimatedCalories；"
+                            "exercise_details JSON，建议包含 items[{type,durationMinutes,intensity,estimatedBurnKcal}]；"
+                            "health_tags 字符串数组；confidence high/medium/low；parse_warnings 字符串数组。"
+                            "需要从原文尽量提取：睡眠时长、饮食内容/餐次/估算摄入、运动类型/时长/估算消耗、健康标签、记录日期和记录时间。"
+                            "只返回 JSON："
                             "{\"confidence\":\"high|medium|low\",\"confidenceScore\":0-1,"
-                            "\"warnings\":[\"...\"],\"previewData\":{\"recordedAt\":\"ISO时间\","
+                            "\"shouldSave\":true或false,\"failureReason\":null或字符串,"
+                            "\"suggestions\":[\"...\"],\"warnings\":[\"...\"],"
+                            "\"previewData\":{\"recordedAt\":\"ISO时间\","
                             "\"recordDate\":\"YYYY-MM-DD\",\"recordType\":\"diet|exercise|sleep|mixed|other\","
                             "\"rawInput\":\"原文\",\"sleepMinutes\":null或整数,"
                             "\"intakeCalories\":null或整数,\"exerciseCalories\":null或整数,"
                             "\"nutritionDetails\":{\"foods\":[],\"mealType\":null},"
                             "\"exerciseDetails\":{\"items\":[]},\"healthTags\":[],"
-                            "\"parseWarnings\":[]}}\n"
+                            "\"confidence\":\"high|medium|low\",\"parseWarnings\":[]}}\n"
                             f"recordedAt={recorded_at.isoformat() if recorded_at else None}, "
                             f"recordDate={record_date.isoformat() if record_date else None}, "
                             f"rawInput={raw_input}"
@@ -121,7 +135,19 @@ class HealthAIParseService:
             "confidence": confidence,
             "parseWarnings": warnings,
         }
-        return HealthParsePreview(str(uuid4()), confidence, confidence_score, warnings, preview_data)
+        should_save = recognized_count > 0
+        failure_reason = None if should_save else "未识别出可落库的健康记录字段。"
+        suggestions = [] if should_save else ["补充睡眠时长、饮食内容或运动类型/时长。", "例如：昨晚睡了7小时，午餐吃了鸡胸肉沙拉，跑步30分钟。"]
+        return HealthParsePreview(
+            str(uuid4()),
+            confidence,
+            confidence_score,
+            warnings,
+            preview_data if should_save else {},
+            should_save,
+            failure_reason,
+            suggestions,
+        )
 
     def _normalize_payload(
         self,
@@ -162,7 +188,26 @@ class HealthAIParseService:
             warnings.append("解析可信度较低，请确认字段后再提交。")
             preview_data["parseWarnings"] = warnings
         preview_data["confidence"] = confidence
-        return HealthParsePreview(str(payload.get("parseId") or uuid4()), confidence, min(max(score, 0), 1), warnings, preview_data)
+        should_save = bool(payload.get("shouldSave", self._has_effective_preview(preview_data) and confidence != "low"))
+        failure_reason = payload.get("failureReason")
+        suggestions = payload.get("suggestions") or []
+        if not isinstance(suggestions, list):
+            suggestions = [str(suggestions)]
+        if not should_save:
+            failure_reason = failure_reason or "未识别出可落库的健康记录字段。"
+            if not suggestions:
+                suggestions = ["补充睡眠时长、饮食内容、运动类型/时长或热量等信息。"]
+            preview_data = {}
+        return HealthParsePreview(
+            str(payload.get("parseId") or uuid4()),
+            confidence,
+            min(max(score, 0), 1),
+            warnings,
+            preview_data,
+            should_save,
+            failure_reason,
+            suggestions,
+        )
 
     def _infer_record_type(self, parsed: dict, raw_input: str) -> str:
         types = []
@@ -213,6 +258,22 @@ class HealthAIParseService:
             ]
         )
         return {0: 0.25, 1: 0.55, 2: 0.78, 3: 0.9}.get(recognized_count, 0.25)
+
+    def _has_effective_preview(self, preview_data: dict) -> bool:
+        return any(
+            [
+                preview_data.get("sleepMinutes") is not None,
+                preview_data.get("intakeCalories") is not None,
+                preview_data.get("exerciseCalories") is not None,
+                bool(preview_data.get("nutritionDetails", {}).get("foods"))
+                if isinstance(preview_data.get("nutritionDetails"), dict)
+                else False,
+                bool(preview_data.get("exerciseDetails", {}).get("items"))
+                if isinstance(preview_data.get("exerciseDetails"), dict)
+                else False,
+                bool(preview_data.get("healthTags")),
+            ]
+        )
 
     def _confidence_from_score(self, score: float) -> str:
         if score >= 0.8:

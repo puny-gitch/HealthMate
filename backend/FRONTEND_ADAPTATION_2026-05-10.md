@@ -29,6 +29,9 @@ POST /api/health/record/parse-ai
     "parseId": "uuid",
     "confidence": "medium",
     "confidenceScore": 0.76,
+    "shouldSave": true,
+    "failureReason": null,
+    "suggestions": [],
     "warnings": ["睡眠时间可能指昨晚，请确认记录日期。"],
     "previewData": {
       "recordedAt": "2026-05-10T20:30:00",
@@ -50,7 +53,8 @@ POST /api/health/record/parse-ai
 前端适配：
 
 - 输入后先调 `/api/health/record/parse-ai`。
-- 如果 `confidence === "low"` 或 `warnings` 非空，展示提示，但不要阻止用户编辑确认。
+- 如果 `shouldSave === false`，不要展示确认入库按钮；弹出 `failureReason`，并展示 `suggestions` 引导用户优化输入。
+- 如果 `confidence === "low"` 或 `warnings` 非空，展示提示。
 - 把 `previewData` 渲染成可编辑表单。
 - 用户确认后调已有接口：
 
@@ -70,6 +74,35 @@ POST /api/health/record/confirm
     "exerciseCalories": 220,
     "healthTags": ["睡眠偏少", "跑步"]
   }
+}
+```
+
+识别失败示例：
+
+```json
+{
+  "code": 0,
+  "message": "未识别出可落库的健康记录字段。",
+  "data": {
+    "parseId": "uuid",
+    "confidence": "low",
+    "confidenceScore": 0.25,
+    "shouldSave": false,
+    "failureReason": "未识别出可落库的健康记录字段。",
+    "suggestions": ["补充睡眠时长、饮食内容或运动类型/时长。"],
+    "warnings": ["未识别出明确睡眠、饮食或运动数据，请补充时间、数量或类型。"],
+    "previewData": {}
+  }
+}
+```
+
+涉及病痛或高危症状时，后端会拒绝保存，前端直接弹 `message`：
+
+```json
+{
+  "code": 40020,
+  "message": "检测到可能涉及病痛或高危症状（胸痛），本条记录不会保存，请及时就医或咨询专业医生。",
+  "data": null
 }
 ```
 
@@ -171,6 +204,7 @@ POST /api/task/add-selected
 前端适配：
 
 - 任务候选使用 checkbox/多选，不要直接加入今日任务。
+- 提交后，后端会先归档当天所有未完成任务，再写入用户选中的新任务。返回中的 `archivedUnfinishedTaskCount` 表示被覆盖的未完成任务数量。
 - 提交后用 `/api/task/today` 刷新今日任务列表。
 - 展示 `skippedReasons`，用于解释为什么没有生成某些方向的任务。
 
