@@ -96,13 +96,23 @@ POST /api/health/record/confirm
 }
 ```
 
-涉及病痛或高危症状时，后端会拒绝保存，前端直接弹 `message`：
+涉及病痛或高危症状时，后端会优先用大模型判断是否超出日常健康记录范畴，尤其是病痛/症状/疾病/用药/心理危机等；大模型不可用时使用正则关键词兜底。命中后拒绝保存，前端直接弹 `message`：
 
 ```json
 {
   "code": 40020,
   "message": "检测到可能涉及病痛或高危症状（胸痛），本条记录不会保存，请及时就医或咨询专业医生。",
-  "data": null
+  "data": {
+    "parseId": null,
+    "confidence": "low",
+    "confidenceScore": 0,
+    "shouldSave": false,
+    "failureReason": "检测到可能涉及病痛或高危症状（胸痛），本条记录不会保存，请及时就医或咨询专业医生。",
+    "suggestions": ["请及时就医或咨询专业医生。", "病痛症状不作为普通健康记录保存。"],
+    "warnings": ["检测到可能涉及病痛或高危症状（胸痛），本条记录不会保存，请及时就医或咨询专业医生。"],
+    "previewData": {},
+    "riskSource": "llm"
+  }
 }
 ```
 

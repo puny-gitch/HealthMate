@@ -12,6 +12,14 @@ def test_risk_detector():
     assert not svc.contains_high_risk("今天慢跑20分钟")
 
 
+def test_risk_detector_reports_rule_fallback_source():
+    svc = RiskWordService()
+    result = svc.analyze("今天胃痛还发烧")
+    assert result.is_risky
+    assert result.source in {"rule", "llm"}
+    assert result.reason
+
+
 def test_parse_service():
     svc = ParseService()
     parsed = svc.parse_from_text("我睡了7小时，运动消耗300kcal")

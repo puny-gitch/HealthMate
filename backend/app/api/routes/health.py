@@ -37,8 +37,10 @@ summary_service = SummaryService(health_repository, summary_repository)
 
 
 def _build_health_record(payload: HealthDataSubmitReq, user_id: int) -> HealthRecord:
-    if payload.rawInput and risk_service.contains_high_risk(payload.rawInput):
-        raise AppException(risk_service.warning_message(payload.rawInput), code=40020, status_code=400)
+    if payload.rawInput:
+        risk = risk_service.analyze(payload.rawInput)
+        if risk.is_risky:
+            raise AppException(risk_service.warning_message(payload.rawInput, risk), code=40020, status_code=400)
 
     parsed = parse_service.parse_from_text(payload.rawInput or "")
     sleep_minutes = payload.sleepMinutes
@@ -138,8 +140,9 @@ def parse_health_input(
 ):
     _ = (user_id, db)
     raw_input = payload.rawInput or ""
-    if risk_service.contains_high_risk(raw_input):
-        raise AppException(risk_service.warning_message(raw_input), code=40020, status_code=400)
+    risk = risk_service.analyze(raw_input)
+    if risk.is_risky:
+        raise AppException(risk_service.warning_message(raw_input, risk), code=40020, status_code=400)
     parsed = parse_service.parse_from_text(raw_input)
     return api_success(
         {
@@ -162,8 +165,9 @@ def parse_health_input_ai(
     db: Session = Depends(get_db),
 ):
     _ = (user_id, db)
-    if risk_service.contains_high_risk(payload.rawInput):
-        message = risk_service.warning_message(payload.rawInput)
+    risk = risk_service.analyze(payload.rawInput)
+    if risk.is_risky:
+        message = risk_service.warning_message(payload.rawInput, risk)
         return api_success(
             {
                 "parseId": None,
@@ -171,9 +175,10 @@ def parse_health_input_ai(
                 "confidenceScore": 0,
                 "shouldSave": False,
                 "failureReason": message,
-                "suggestions": ["请及时就医或咨询专业医生。", "病痛症状不作为普通健康记录保存。"],
+                "suggestions": risk.suggestions or ["请及时就医或咨询专业医生。", "病痛症状不作为普通健康记录保存。"],
                 "warnings": [message],
                 "previewData": {},
+                "riskSource": risk.source,
             },
             message,
             code=40020,
@@ -204,8 +209,10 @@ def confirm_health_record(
     data.setdefault("recordDate", payload.recordDate)
     data.setdefault("recordedAt", payload.recordedAt)
     data.setdefault("rawInput", payload.rawInput)
-    if data.get("rawInput") and risk_service.contains_high_risk(data["rawInput"]):
-        raise AppException(risk_service.warning_message(data["rawInput"]), code=40020, status_code=400)
+    if data.get("rawInput"):
+        risk = risk_service.analyze(data["rawInput"])
+        if risk.is_risky:
+            raise AppException(risk_service.warning_message(data["rawInput"], risk), code=40020, status_code=400)
     record_payload = HealthDataSubmitReq.model_validate(data)
     record = _build_health_record(record_payload, user_id)
     created = health_repository.create(db, record)
