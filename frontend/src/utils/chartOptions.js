@@ -48,13 +48,30 @@ export function buildSleepSeries(data) {
 export function buildPieOption(data) {
   return {
     tooltip: { trigger: "item" },
-    legend: { bottom: 4 },
+    legend: {
+      orient: "vertical",
+      right: 8,
+      top: "middle",
+      itemGap: 10,
+      textStyle: { color: "#5a6d67", fontSize: 12 },
+    },
     series: [
       {
         name: "健康标签",
         type: "pie",
-        radius: ["45%", "72%"],
+        radius: ["40%", "64%"],
+        center: ["36%", "50%"],
         color: ["#4e9e8c", "#8fbfcc", "#ffb46d", "#b5d892", "#6f9bff"],
+        label: {
+          show: true,
+          formatter: "{b}",
+          color: "#5a6d67",
+          fontSize: 11,
+        },
+        labelLine: {
+          length: 8,
+          length2: 6,
+        },
         itemStyle: {
           borderColor: "#fff",
           borderWidth: 2,

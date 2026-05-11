@@ -2,22 +2,46 @@
   background: var(--hm-card);
   border: 1px solid var(--hm-border);
   border-radius: var(--hm-radius);
-  box-shadow: var(--hm-shadow);
+  box-shadow: var(--hm-shadow-soft);
   padding: 18px;
-  backdrop-filter: blur(16px);
+  transition: transform var(--hm-duration-fast) var(--hm-ease-smooth),
+    box-shadow var(--hm-duration-fast) var(--hm-ease-smooth),
+    border-color var(--hm-duration-fast) var(--hm-ease-smooth);
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--hm-shadow-lift);
+  border-color: var(--hm-border-strong);
+}
+
+.glow:hover {
+  border-color: rgba(47, 125, 111, 0.28);
+  box-shadow: var(--hm-shadow-lift), var(--hm-glow-primary);
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: var(--hm-blur-glass);
+  -webkit-backdrop-filter: var(--hm-blur-glass);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.glass:hover {
+  background: rgba(255, 255, 255, 0.84);
 }
 
 .header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   margin-bottom: 14px;
 }
 
 .header h3 {
   margin: 0;
-  font-size: 17px;
+  font-size: 16px;
+  line-height: 1.4;
   color: var(--hm-text-main);
-  letter-spacing: -0.02em;
 }

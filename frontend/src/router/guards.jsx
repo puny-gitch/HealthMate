@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { DotLoading } from "antd-mobile";
+import { motion } from "framer-motion";
 import { useEffect } from "react";
 import { useAppStore } from "../store/AppStore";
 import { profileApi } from "../services/api";
@@ -28,10 +29,14 @@ export function AuthGuard() {
     profileApi
       .getProfile()
       .then((profile) => {
-        if (active) actions.updateUser(mapProfile(profile));
+        if (active) {
+          actions.updateUser(mapProfile(profile));
+        }
       })
       .catch(() => {
-        if (active) actions.logout();
+        if (active) {
+          actions.logout();
+        }
       });
 
     return () => {
@@ -45,9 +50,15 @@ export function AuthGuard() {
 
   if (token && !user.userId) {
     return (
-      <div style={{ padding: 32, textAlign: "center" }}>
+      <motion.div
+        className="app-loading-spinner"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
         <DotLoading color="primary" />
-      </div>
+        <span>加载中...</span>
+      </motion.div>
     );
   }
 

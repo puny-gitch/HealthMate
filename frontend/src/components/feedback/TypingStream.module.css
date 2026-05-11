@@ -12,24 +12,34 @@
 
 .cursor {
   display: inline-block;
+  width: 2px;
+  height: 1.1em;
   margin-left: 2px;
+  background: var(--hm-primary);
+  vertical-align: text-bottom;
   animation: blink 0.8s infinite;
-  color: var(--hm-primary);
+  border-radius: 1px;
 }
 
 .loading {
   margin-top: 10px;
   color: var(--hm-primary);
   font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.loading::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hm-primary);
+  animation: pulseGlow 1.5s ease-in-out infinite;
 }
 
 @keyframes blink {
-  0%,
-  50% {
-    opacity: 1;
-  }
-  51%,
-  100% {
-    opacity: 0;
-  }
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
 }

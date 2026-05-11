@@ -14,6 +14,8 @@ export const profileApi = {
 
 export const healthApi = {
   parseData: (payload) => http.post("/health/parse", payload),
+  parseRecordAI: (payload) => http.post("/health/record/parse-ai", payload),
+  confirmRecord: (payload) => http.post("/health/record/confirm", payload),
   submitData: (payload) => http.post("/health/data", payload),
   getDashboard: () => http.get("/health/dashboard"),
   getTrends: (params) => http.get("/health/trends", { params }),
@@ -29,4 +31,6 @@ export const taskApi = {
   today: () => http.get("/task/today"),
   history: (params) => http.get("/task/history", { params }),
   check: (payload) => http.post("/task/check", payload),
+  generatePreview: (payload) => http.post("/task/generate-preview", payload),
+  addSelected: (payload) => http.post("/task/add-selected", payload),
 };

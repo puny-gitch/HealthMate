@@ -1,4 +1,4 @@
-import { Avatar, Button, List, Toast } from "antd-mobile";
+import { Avatar, Button, Toast } from "antd-mobile";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AppCard from "../../components/common/AppCard";
@@ -40,78 +40,138 @@ function ProfilePage() {
     };
   }, [actions]);
 
+  const latestAdvice = recommendations[0]?.content || "暂无 AI 建议，进入 AI 建议页后可生成新的健康建议。";
+  const profileMeta = [
+    { label: "身高", value: user.height ? `${user.height} cm` : "-" },
+    { label: "体重", value: user.weight ? `${user.weight} kg` : "-" },
+    { label: "记录", value: recentEntries.length },
+    { label: "建议", value: recommendations.length },
+  ];
+  const quickActions = [
+    { label: "编辑档案", desc: "更新基础信息和健康目标", action: () => navigate("/profile-setup"), primary: true },
+    { label: "健康趋势", desc: "查看睡眠、摄入和消耗变化", action: () => navigate("/trends") },
+    { label: "任务历史", desc: "回顾每日健康任务执行情况", action: () => navigate("/tasks") },
+    { label: "我的成就", desc: "功能待接入", action: () => Toast.show({ content: "成就功能待接入。" }) },
+  ];
+  const historyRows = [
+    { label: "伤病史", value: user.injuryHistory || "无" },
+    { label: "过敏史", value: user.allergyHistory || "无" },
+  ];
+
   return (
     <PageTransition>
       <div className={styles.page}>
-        <AppCard className={styles.heroCard}>
-          <div className={styles.userInfo}>
-            <Avatar src={user.avatar} style={{ "--size": "72px" }} />
-            <div>
-              <span className="hm-page-eyebrow">我的健康伙伴档案</span>
+        <section className={styles.hero}>
+          <div className={styles.identity}>
+            <Avatar src={user.avatar} className={styles.avatar} style={{ "--size": "76px" }} />
+            <div className={styles.identityText}>
+              <span className="hm-page-eyebrow">HealthMate Profile</span>
               <h1>{user.nickname}</h1>
-              <p>
-                目标：{user.goal} · 后端用户 ID：{user.userId || "-"}
-              </p>
             </div>
           </div>
-          <div className={styles.metrics}>
-            <div>
-              <strong>{user.height} cm</strong>
-              <span>身高</span>
-            </div>
-            <div>
-              <strong>{user.weight} kg</strong>
-              <span>体重</span>
-            </div>
-            <div>
-              <strong>{recentEntries.length}</strong>
-              <span>近期记录</span>
-            </div>
-            <div>
-              <strong>{recommendations.length}</strong>
-              <span>AI 陪伴次数</span>
-            </div>
-          </div>
-        </AppCard>
 
-        <AppCard title="我的节奏">
-          <div className={styles.planGrid}>
-            <article className={styles.planCard}>
-              <span className="hm-page-eyebrow">提醒</span>
-              <strong>{recommendations[0]?.content ? "已有后端 AI 建议" : "暂无后端提醒"}</strong>
-              <p>{recommendations[0]?.content || "进入 AI 建议页后，后端会生成今日建议。"}</p>
-            </article>
-            <article className={styles.planCard}>
-              <span className="hm-page-eyebrow">病史备注</span>
-              <strong>{user.medicalHistory}</strong>
-              <p>目前档案以轻量健康管理为主，不替代专业医疗判断。</p>
-            </article>
-          </div>
-          <div className={styles.actions}>
-            <Button color="primary" onClick={() => navigate("/profile-setup")}>
-              修改档案
+          <div className={styles.heroPanel}>
+            <div className={styles.idBlock}>
+              <span>用户 ID</span>
+              <strong>{user.userId || "-"}</strong>
+            </div>
+            <Button className={styles.editButton} fill="outline" onClick={() => navigate("/profile-setup")}>
+              编辑档案
             </Button>
-            <Button onClick={() => navigate("/profile-setup")}>修改目标</Button>
           </div>
-        </AppCard>
+        </section>
 
-        <AppCard title="更多操作">
-          <List mode="card">
-            <List.Item onClick={() => navigate("/tasks")}>查看任务历史</List.Item>
-            <List.Item onClick={() => navigate("/trends")}>查看健康数据</List.Item>
-            <List.Item onClick={() => Toast.show({ content: "当前后端未提供成就数据接口。" })}>我的成就</List.Item>
-            <List.Item
-              onClick={() => {
-                actions.logout();
-                navigate("/auth/login");
-              }}
-            >
-              退出登录
-            </List.Item>
-          </List>
-        </AppCard>
+        <section className={styles.overview}>
+          <div className={styles.metricRail}>
+            {profileMeta.map((item) => (
+              <div className={styles.metricItem} key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </div>
+            ))}
+          </div>
 
-        <p className={styles.disclaimer}>HealthMate 是陪伴式健康管理工具，不替代医生诊疗建议。</p>
+          <AppCard className={styles.adviceCard}>
+            <div className={styles.cardHead}>
+              <div>
+                <span className="hm-page-eyebrow">当前建议</span>
+                <h2>最新健康建议</h2>
+              </div>
+              <Button className="hm-ghost-action" fill="outline" size="small" onClick={() => navigate("/ai-advice")}>
+                查看 AI 建议
+              </Button>
+            </div>
+            <p>{latestAdvice}</p>
+          </AppCard>
+        </section>
+
+        <section className={styles.contentGrid}>
+          <AppCard className={styles.profileCard}>
+            <div className={styles.cardHead}>
+              <div>
+                <span className="hm-page-eyebrow">档案摘要</span>
+                <h2>基础健康信息</h2>
+              </div>
+            </div>
+            <dl className={styles.detailList}>
+              <div>
+                <dt>健康目标</dt>
+                <dd>{user.goal}</dd>
+              </div>
+              {historyRows.map((item) => (
+                <div key={item.label}>
+                  <dt>{item.label}</dt>
+                  <dd>{item.value}</dd>
+                </div>
+              ))}
+              {recentEntries[0]?.summary && (
+                <div>
+                  <dt>最近记录</dt>
+                  <dd>{recentEntries[0].summary}</dd>
+                </div>
+              )}
+            </dl>
+          </AppCard>
+
+          <AppCard className={styles.actionCard}>
+            <div className={styles.cardHead}>
+              <div>
+                <span className="hm-page-eyebrow">快捷入口</span>
+                <h2>常用操作</h2>
+              </div>
+            </div>
+            <div className={styles.actionList}>
+              {quickActions.map((item) => (
+                <button
+                  className={`${styles.actionItem} ${item.primary ? styles.primaryAction : ""}`}
+                  key={item.label}
+                  onClick={item.action}
+                  type="button"
+                >
+                  <span>
+                    <strong>{item.label}</strong>
+                    <em>{item.desc}</em>
+                  </span>
+                  <b>→</b>
+                </button>
+              ))}
+            </div>
+          </AppCard>
+        </section>
+
+        <footer className={styles.footer}>
+          <span>HealthMate 是陪伴式健康管理工具，不替代医生诊疗建议。</span>
+          <Button
+            fill="none"
+            size="small"
+            onClick={() => {
+              actions.logout();
+              navigate("/auth/login");
+            }}
+          >
+            退出登录
+          </Button>
+        </footer>
       </div>
     </PageTransition>
   );

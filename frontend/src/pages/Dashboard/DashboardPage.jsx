@@ -1,8 +1,10 @@
-import { Avatar, Button, ProgressBar, Toast } from "antd-mobile";
+import { Button, ProgressBar, Toast } from "antd-mobile";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppCard from "../../components/common/AppCard";
+import AnimatedCounter from "../../components/common/AnimatedCounter";
 import PageTransition from "../../components/common/PageTransition";
+import StaggerList from "../../components/common/StaggerList";
 import { useAppStore } from "../../store/AppStore";
 import { adviceApi, healthApi, taskApi } from "../../services/api";
 import { mapHealthRecord, mapTask, mapTrend } from "../../utils/backendMappers";
@@ -74,42 +76,28 @@ function DashboardPage() {
     return Math.round((done / total) * 100);
   }, [completionRate, todayTasks]);
 
-  const latestAdvice = recommendations[0]?.content ?? "暂无后端 AI 建议，进入 AI 建议页生成今日建议。";
-  const completionMood =
-    progress >= 80
-      ? {
-          label: "状态很稳",
-          copy: "今天的执行感不错，继续按这个节奏走，身体会给你很温柔的反馈。",
-        }
-      : progress >= 40
-        ? {
-            label: "节奏在线",
-            copy: "已经有开始行动的感觉了，再完成一件小任务，今天就很完整。",
-          }
-        : {
-            label: "慢慢来就好",
-            copy: "不用追求一口气做很多，我们先把最容易的一件事完成。",
-          };
-
+  const latestAdvice = recommendations[0]?.content ?? "暂无 AI 建议，可进入 AI 建议页生成。";
   const sleepAverage = useMemo(() => {
-    if (!metrics.week.sleep.length) return "0.0";
+    if (!metrics.week.sleep.length) return 0;
     const total = metrics.week.sleep.reduce((sum, item) => sum + item, 0);
-    return (total / metrics.week.sleep.length).toFixed(1);
+    return total / metrics.week.sleep.length;
   }, [metrics.week.sleep]);
 
   const trendHighlights = [
-    { title: "睡眠", value: `${sleepAverage}h`, delta: "近 7 天平均", note: metrics.week.insight },
+    { title: "睡眠", value: sleepAverage, suffix: "h", delta: "近 7 天平均", decimal: 1 },
     {
       title: "摄入",
-      value: `${metrics.week.intake.at(-1) || 0} kcal`,
+      value: metrics.week.intake.at(-1) || 0,
+      suffix: " kcal",
       delta: "最近一次记录",
-      note: "来自后端健康记录",
+      decimal: 0,
     },
     {
       title: "消耗",
-      value: `${metrics.week.burn.at(-1) || 0} kcal`,
+      value: metrics.week.burn.at(-1) || 0,
+      suffix: " kcal",
       delta: "最近一次记录",
-      note: "来自后端健康记录",
+      decimal: 0,
     },
   ];
 
@@ -129,34 +117,28 @@ function DashboardPage() {
       <div className={styles.page}>
         <section className={styles.hero}>
           <div className={styles.heroIntro}>
-            <span className="hm-page-eyebrow">HealthMate Daily Brief</span>
-            <h1>
-              {getGreeting()}，{user.nickname}
-              <span>当前目标：{user.goal}</span>
-            </h1>
-            <p>{completionMood.copy}</p>
-            <div className={styles.heroMeta}>
-              <span className="hm-soft-pill">目标：{user.goal}</span>
-              <span className="hm-soft-pill">近期记录 {recentEntries.length} 条</span>
-              <span className="hm-soft-pill">今日任务 {todayTasks.length} 项</span>
-            </div>
+            <span className="hm-page-eyebrow">首页概览</span>
+            <h1>{getGreeting()}，{user.nickname}</h1>
+            <p>今日有 {todayTasks.length} 项任务，最近记录 {recentEntries.length} 条。</p>
           </div>
 
-          <AppCard className={styles.scoreCard}>
+          <AppCard className={styles.scoreCard} glow>
             <div className={styles.scoreHeader}>
-              <Avatar src={user.avatar} style={{ "--size": "54px" }} />
               <div>
-                <strong>{completionMood.label}</strong>
-                <span>今天的健康节奏在这里</span>
+                <strong>今日任务</strong>
+                <span>
+                  已完成 {todayTasks.filter((task) => task.completed).length} / {todayTasks.length}
+                </span>
+              </div>
+              <div className={styles.progressBadge}>
+                <strong>
+                  <AnimatedCounter to={progress} suffix="%" duration={1} />
+                </strong>
               </div>
             </div>
-            <div className={styles.scoreValue}>{progress}%</div>
             <ProgressBar percent={progress} />
             <div className={styles.scoreFoot}>
-              <span>
-                已完成 {todayTasks.filter((task) => task.completed).length} / {todayTasks.length} 个任务
-              </span>
-              <Button fill="none" size="small" onClick={() => navigate("/tasks")}>
+              <Button className="hm-ghost-action" fill="outline" size="small" onClick={() => navigate("/tasks")}>
                 查看全部
               </Button>
             </div>
@@ -166,11 +148,11 @@ function DashboardPage() {
         <AppCard className={styles.adviceCard}>
           <div className={styles.sectionHead}>
             <div>
-              <span className="hm-page-eyebrow">AI 陪伴建议</span>
-              <h2 className="hm-section-title">今天先做小调整，不需要太用力</h2>
+              <span className="hm-page-eyebrow">AI 建议</span>
+              <h2 className="hm-section-title">最新健康建议</h2>
             </div>
-            <Button fill="none" size="small" onClick={() => navigate("/ai-advice")}>
-              沉浸查看
+            <Button className="hm-ghost-action" fill="outline" size="small" onClick={() => navigate("/ai-advice")}>
+              查看详情
             </Button>
           </div>
           <p className={styles.adviceText}>
@@ -184,52 +166,48 @@ function DashboardPage() {
           </div>
         </AppCard>
 
-        <AppCard>
-          <div className={styles.sectionHead}>
-            <div>
-              <span className="hm-page-eyebrow">今日任务</span>
-              <h2 className="hm-section-title">轻一点，也能形成闭环</h2>
-            </div>
-          </div>
+        <AppCard title="今日任务">
           <div className={styles.taskList}>
-            {!todayTasks.length && <p className="hm-section-copy">暂无后端任务，进入 AI 建议页可生成今日任务。</p>}
-            {todayTasks.map((task) => {
-              const ratio = task.target ? (task.progress / task.target) * 100 : 0;
-              return (
-                <article key={task.id} className={`${styles.taskItem} ${task.completed ? styles.done : ""}`}>
-                  <div className={styles.taskTop}>
-                    <div>
-                      <h3>{task.title}</h3>
-                      <p>{task.reason}</p>
+            {!todayTasks.length && <p className="hm-section-copy">暂无任务，可进入 AI 建议页生成。</p>}
+            <StaggerList as="div" className={styles.taskListInner}>
+              {todayTasks.map((task) => {
+                const ratio = task.target ? (task.progress / task.target) * 100 : 0;
+                return (
+                  <article key={task.id} className={`${styles.taskItem} ${task.completed ? styles.done : ""}`}>
+                    <div className={styles.taskTop}>
+                      <div>
+                        <h3>{task.title}</h3>
+                        <p>{task.reason}</p>
+                      </div>
+                      <Button
+                        size="small"
+                        color={task.completed ? "success" : "primary"}
+                        fill={task.completed ? "solid" : "outline"}
+                        onClick={() => handleTaskToggle(task)}
+                      >
+                        {task.completed ? "已完成" : "去完成"}
+                      </Button>
                     </div>
-                    <Button
-                      size="small"
-                      color={task.completed ? "success" : "primary"}
-                      fill={task.completed ? "solid" : "outline"}
-                      onClick={() => handleTaskToggle(task)}
-                    >
-                      {task.completed ? "已完成" : "去完成"}
-                    </Button>
-                  </div>
-                  <div className={styles.taskMeta}>
-                    <span>{task.category}</span>
-                    <span>
-                      {task.progress}/{task.target}
-                      {task.unit}
-                    </span>
-                  </div>
-                  <ProgressBar percent={Math.min(ratio, 100)} />
-                </article>
-              );
-            })}
+                    <div className={styles.taskMeta}>
+                      <span>{task.category}</span>
+                      <span>
+                        {task.progress}/{task.target}
+                        {task.unit}
+                      </span>
+                    </div>
+                    <ProgressBar percent={Math.min(ratio, 100)} />
+                  </article>
+                );
+              })}
+            </StaggerList>
           </div>
         </AppCard>
 
         <section className={styles.quickGrid}>
-          <AppCard className={styles.quickCard}>
+          <AppCard className={styles.quickCard} glow>
             <span className="hm-page-eyebrow">快速记录</span>
-            <h2 className="hm-section-title">随手说一句，也算认真照顾自己</h2>
-            <p className="hm-section-copy">少输入一点，反而更容易坚持。你可以打字，也可以先从一句简单的话开始。</p>
+            <h2 className="hm-section-title">记录今日状态</h2>
+            <p className="hm-section-copy">输入睡眠、饮食、运动等信息，系统会解析为结构化记录。</p>
             <div className={styles.quickButtons}>
               <Button color="primary" onClick={() => navigate("/data-entry")}>
                 记录今天状态
@@ -248,10 +226,10 @@ function DashboardPage() {
 
           <AppCard className={styles.entryCard}>
             <span className="hm-page-eyebrow">最近一次记录</span>
-            <h2 className="hm-section-title">{recentEntries[0]?.mood}</h2>
-            <p className={styles.entryText}>{recentEntries[0]?.summary || "暂无后端健康记录"}</p>
-            <button className={styles.linkButton} onClick={() => navigate("/data-entry")} type="button">
-              继续补充今天的感受
+            <h2 className="hm-section-title">{recentEntries[0]?.mood || "暂无"}</h2>
+            <p className={styles.entryText}>{recentEntries[0]?.summary || "暂无记录"}</p>
+            <button className={`${styles.linkButton} ${styles.recordLink}`} onClick={() => navigate("/data-entry")} type="button">
+              补充记录
             </button>
           </AppCard>
         </section>
@@ -260,9 +238,10 @@ function DashboardPage() {
           {trendHighlights.map((item) => (
             <AppCard key={item.title} className={styles.highlightCard}>
               <span className="hm-page-eyebrow">{item.title}</span>
-              <strong>{item.value}</strong>
+              <strong>
+                <AnimatedCounter to={item.value} suffix={item.suffix} decimal={item.decimal} duration={1} />
+              </strong>
               <em>{item.delta}</em>
-              <p>{item.note}</p>
             </AppCard>
           ))}
         </section>

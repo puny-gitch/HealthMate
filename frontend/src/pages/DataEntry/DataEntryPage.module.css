@@ -1,23 +1,34 @@
 .page {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .heroCard {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(223, 242, 237, 0.78));
+  border-left: 4px solid var(--hm-primary);
+  position: relative;
+  overflow: hidden;
+}
+
+.heroCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(229, 242, 239, 0.3) 0%, transparent 50%);
+  pointer-events: none;
+  border-radius: inherit;
 }
 
 .title {
   margin: 10px 0 0;
-  font-size: clamp(28px, 4vw, 38px);
-  line-height: 1.15;
-  letter-spacing: -0.04em;
+  max-width: 760px;
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.12;
 }
 
 .copy {
   margin: 14px 0 0;
   max-width: 720px;
-  line-height: 1.85;
+  line-height: 1.8;
   color: var(--hm-text-secondary);
 }
 
@@ -25,24 +36,37 @@
   margin-top: 18px;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .exampleChip {
-  border: 1px solid rgba(78, 158, 140, 0.12);
+  border: 1px solid var(--hm-border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--hm-card-muted);
   color: var(--hm-primary-strong);
-  padding: 10px 14px;
+  padding: 8px 11px;
   cursor: pointer;
-  box-shadow: var(--hm-shadow-soft);
+  transition: transform var(--hm-duration-fast) var(--hm-ease-smooth),
+    background var(--hm-duration-fast) var(--hm-ease-smooth),
+    border-color var(--hm-duration-fast) var(--hm-ease-smooth);
+}
+
+.exampleChip:hover {
+  transform: translateY(-1px) scale(1.02);
+  background: var(--hm-primary-soft);
+  border-color: rgba(47, 125, 111, 0.28);
 }
 
 .inputArea {
-  border-radius: 18px;
-  background: rgba(247, 251, 249, 0.9);
+  border-radius: var(--hm-radius);
+  background: var(--hm-card-muted);
   padding: 14px;
-  border: 1px solid rgba(78, 158, 140, 0.1);
+  border: 1px solid var(--hm-border);
+  transition: border-color var(--hm-duration-fast) var(--hm-ease-smooth);
+}
+
+.inputArea:focus-within {
+  border-color: rgba(47, 125, 111, 0.28);
 }
 
 .actionRow {
@@ -55,13 +79,13 @@
 .placeholder,
 .parsing {
   min-height: 120px;
-  border-radius: 18px;
+  border-radius: var(--hm-radius);
   display: flex;
   justify-content: center;
   align-items: center;
   flex-direction: column;
   gap: 8px;
-  background: rgba(247, 251, 249, 0.72);
+  background: var(--hm-card-muted);
   color: var(--hm-text-secondary);
   text-align: center;
 }
@@ -76,12 +100,23 @@
   gap: 12px;
 }
 
+.warningList {
+  grid-column: 1 / -1;
+}
+
 .metricCard,
 .noteCard {
-  border-radius: 18px;
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(78, 158, 140, 0.1);
+  border-radius: var(--hm-radius);
+  padding: 15px;
+  background: var(--hm-card-muted);
+  border: 1px solid var(--hm-border);
+  transition: transform var(--hm-duration-fast) var(--hm-ease-smooth),
+    border-color var(--hm-duration-fast) var(--hm-ease-smooth);
+}
+
+.metricCard:hover {
+  transform: translateY(-1px);
+  border-color: rgba(47, 125, 111, 0.2);
 }
 
 .metricCard span {
@@ -91,7 +126,7 @@
 }
 
 .metricValue {
-  margin-top: 12px;
+  margin-top: 10px;
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -99,8 +134,8 @@
 
 .metricValue :global(.adm-input) {
   padding: 0;
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 26px;
+  font-weight: 800;
   color: var(--hm-text-main);
 }
 
@@ -111,7 +146,7 @@
 
 .noteCard {
   grid-column: 1 / -1;
-  background: linear-gradient(135deg, rgba(255, 242, 223, 0.78), rgba(255, 255, 255, 0.88));
+  background: var(--hm-accent-soft);
 }
 
 .noteCard strong {

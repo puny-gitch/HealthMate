@@ -5,7 +5,7 @@ function TypingStream({ text, loading }) {
     <div className={styles.wrapper}>
       <p className={styles.text}>
         {text}
-        {loading && <span className={styles.cursor}>|</span>}
+        {loading && <span className={styles.cursor} />}
       </p>
       {loading && <div className={styles.loading}>AI 正在生成建议...</div>}
     </div>

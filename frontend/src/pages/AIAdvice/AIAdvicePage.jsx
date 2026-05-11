@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { Avatar, Button, DotLoading, Toast } from "antd-mobile";
+import { Avatar, Button, Checkbox, DotLoading, NoticeBar, Toast } from "antd-mobile";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppCard from "../../components/common/AppCard";
 import PageTransition from "../../components/common/PageTransition";
+import StaggerList from "../../components/common/StaggerList";
 import TypingStream from "../../components/feedback/TypingStream";
 import { useSSEAdvice } from "../../hooks/useSSEAdvice";
 import { useAppStore } from "../../store/AppStore";
@@ -18,23 +20,16 @@ function AIAdvicePage() {
     state: { token, tasks, recommendations, user },
     actions,
   } = useAppStore();
+  const [taskPreview, setTaskPreview] = useState(null);
+  const [selectedDrafts, setSelectedDrafts] = useState([]);
+  const [generatingTasks, setGeneratingTasks] = useState(false);
+  const [addingTasks, setAddingTasks] = useState(false);
   const sseUrl = token ? `${API_BASE_URL}/advice/stream?token=${encodeURIComponent(token)}` : "";
   const refreshTodayTasks = useCallback(async () => {
     const result = await taskApi.today();
     actions.setTasks((result.tasks || []).map((task) => mapTask(task, "today")));
   }, [actions]);
-  const handleTasks = useCallback(
-    async (items) => {
-      actions.addTasks((items || []).map((task) => mapTask({ ...task, status: 0 }, "today")));
-      try {
-        await refreshTodayTasks();
-      } catch {
-        // SSE 已经提供了任务数据，刷新失败时保留流式返回的结果。
-      }
-    },
-    [actions, refreshTodayTasks],
-  );
-  const { text, loading, error, resumeHint, connect } = useSSEAdvice(sseUrl, { onTasks: handleTasks });
+  const { text, loading, error, resumeHint, connect } = useSSEAdvice(sseUrl);
 
   useEffect(() => {
     connect();
@@ -69,7 +64,63 @@ function AIAdvicePage() {
 
   const todoTasks = useMemo(() => tasks.filter((task) => task.slot === "today").slice(0, 3), [tasks]);
   const history = recommendations.slice(0, 3);
-  const displayText = text || recommendations[0]?.content || "暂无后端 AI 建议。";
+  const displayText = text || recommendations[0]?.content || "暂无 AI 建议。";
+  const today = new Date().toISOString().slice(0, 10);
+  const forceGenerate = () => {
+    if (!sseUrl) {
+      Toast.show({ content: "请先登录后再生成建议" });
+      return;
+    }
+    const separator = sseUrl.includes("?") ? "&" : "?";
+    connect(`${sseUrl}${separator}force=true&t=${Date.now()}`);
+  };
+
+  const generateTaskPreview = async () => {
+    try {
+      setGeneratingTasks(true);
+      const result = await taskApi.generatePreview({ targetDate: today, maxTasks: 3 });
+      setTaskPreview(result);
+      setSelectedDrafts((result.candidates || []).map((task) => task.draftId));
+      if (!result.candidates?.length) {
+        Toast.show({ content: "暂无可加入的候选任务。" });
+      }
+    } catch (previewError) {
+      Toast.show({
+        content: previewError.message?.includes("404")
+          ? "当前后端未启用任务候选接口，请重启最新后端服务。"
+          : previewError.message || "候选任务生成失败",
+      });
+    } finally {
+      setGeneratingTasks(false);
+    }
+  };
+
+  const addSelectedTasks = async () => {
+    const selectedTasks = (taskPreview?.candidates || []).filter((task) => selectedDrafts.includes(task.draftId));
+    if (!selectedTasks.length) {
+      Toast.show({ content: "请至少选择一个候选任务。" });
+      return;
+    }
+    try {
+      setAddingTasks(true);
+      await taskApi.addSelected({
+        targetDate: taskPreview.targetDate || today,
+        tasks: selectedTasks.map((task) => ({
+          taskContent: task.taskContent,
+          aiReason: task.aiReason,
+          difficulty: task.difficulty,
+        })),
+      });
+      await refreshTodayTasks();
+      setTaskPreview(null);
+      setSelectedDrafts([]);
+      Toast.show({ content: "任务已加入今日列表" });
+    } catch (addError) {
+      Toast.show({ content: addError.message || "任务加入失败" });
+    } finally {
+      setAddingTasks(false);
+    }
+  };
 
   const handleTaskToggle = async (task) => {
     const nextCompleted = !task.completed;
@@ -85,14 +136,14 @@ function AIAdvicePage() {
   return (
     <PageTransition>
       <div className={styles.page}>
-        <AppCard className={styles.heroCard}>
+        <AppCard className={styles.heroCard} glow>
           <div className={styles.heroTop}>
             <div className={styles.botInfo}>
               <Avatar src={user.avatar} style={{ "--size": "52px" }} />
               <div>
                 <span className="hm-page-eyebrow">HealthMate AI</span>
-                <h1>像朋友一样给你一点点推动</h1>
-                <p>不是批评，也不是打分，而是帮你把今天过得更轻一点。</p>
+                <h1>AI 健康建议</h1>
+                <p>基于近期健康记录生成建议和任务，结果仅作日常管理参考。</p>
               </div>
             </div>
             <div className={styles.statusBadge}>
@@ -112,16 +163,53 @@ function AIAdvicePage() {
           {error && <div className={styles.warn}>{error}</div>}
           <TypingStream text={displayText} loading={loading} />
           <div className={styles.actionBar}>
-            <Button fill="outline" onClick={() => Toast.show({ content: "收到，这条建议会作为你的偏好记录下来。" })}>
-              有帮助
-            </Button>
-            <Button color="primary" onClick={() => connect()}>
+            <Button color="primary" onClick={forceGenerate}>
               重新生成
+            </Button>
+            <Button loading={generatingTasks} onClick={generateTaskPreview}>
+              生成任务
             </Button>
           </div>
         </AppCard>
 
-        <AppCard title="生成的行动建议">
+        <AppCard title="任务候选">
+          {!taskPreview && <p className="hm-section-copy">点击"生成任务"后，可选择候选任务加入今日任务列表。</p>}
+          {taskPreview?.skippedReasons?.length > 0 && (
+            <div className={styles.noticeStack}>
+              {taskPreview.skippedReasons.map((reason) => (
+                <NoticeBar key={reason} color="alert" content={reason} />
+              ))}
+            </div>
+          )}
+          {taskPreview?.candidates?.length > 0 && (
+            <>
+              <Checkbox.Group value={selectedDrafts} onChange={setSelectedDrafts}>
+                <StaggerList className={styles.taskList}>
+                  {taskPreview.candidates.map((task) => (
+                    <label key={task.draftId} className={styles.task}>
+                      <Checkbox value={task.draftId} />
+                      <div>
+                        <h4>{task.taskContent}</h4>
+                        <p>{task.aiReason}</p>
+                        <span className={styles.taskMeta}>
+                          难度：{task.difficulty || "-"}
+                          {task.similarityWarning ? " · 可能与已有任务相似" : ""}
+                        </span>
+                      </div>
+                    </label>
+                  ))}
+                </StaggerList>
+              </Checkbox.Group>
+              <div className={styles.actionBar}>
+                <Button color="primary" loading={addingTasks} onClick={addSelectedTasks}>
+                  加入今日任务
+                </Button>
+              </div>
+            </>
+          )}
+        </AppCard>
+
+        <AppCard title="今日任务">
           <div className={styles.taskList}>
             {todoTasks.map((task) => (
               <div key={task.id} className={styles.task}>
@@ -141,19 +229,21 @@ function AIAdvicePage() {
           </div>
         </AppCard>
 
-        <AppCard title="最近几次 AI 陪伴记录">
-          <div className={styles.historyList}>
+        <AppCard title="最近 AI 建议记录">
+          <StaggerList className={styles.historyList}>
             {history.map((item) => (
               <article key={item.time} className={styles.historyItem}>
                 <strong>{new Date(item.time).toLocaleDateString("zh-CN")}</strong>
                 <p>{item.content}</p>
               </article>
             ))}
-            {!history.length && <p className="hm-section-copy">暂无后端历史建议。</p>}
-          </div>
+          </StaggerList>
+          {!history.length && <p className="hm-section-copy">暂无历史建议。</p>}
         </AppCard>
 
-        <Button onClick={() => navigate("/dashboard")}>返回首页</Button>
+        <Button className="hm-ghost-action" fill="outline" onClick={() => navigate("/dashboard")}>
+          返回首页
+        </Button>
       </div>
     </PageTransition>
   );

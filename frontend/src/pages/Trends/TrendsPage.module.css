@@ -1,24 +1,24 @@
 .page {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .heroCard {
-  background: linear-gradient(140deg, rgba(255, 255, 255, 0.96), rgba(233, 244, 250, 0.78));
+  border-left: 4px solid var(--hm-secondary);
 }
 
 .heroTop {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 18px;
   align-items: flex-start;
 }
 
 .heroTop h1 {
   margin: 8px 0 0;
-  font-size: clamp(28px, 4vw, 36px);
-  line-height: 1.14;
-  letter-spacing: -0.04em;
+  max-width: 760px;
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.12;
 }
 
 .heroTop p {
@@ -36,17 +36,24 @@
 }
 
 .summaryCard {
-  border-radius: 18px;
+  border-radius: var(--hm-radius);
   padding: 16px;
-  background: rgba(255, 255, 255, 0.76);
+  background: var(--hm-card-muted);
   border: 1px solid var(--hm-border);
+  transition: transform var(--hm-duration-fast) var(--hm-ease-smooth),
+    border-color var(--hm-duration-fast) var(--hm-ease-smooth);
+}
+
+.summaryCard:hover {
+  transform: translateY(-1px);
+  border-color: var(--hm-border-strong);
 }
 
 .summaryCard strong {
   display: block;
   font-size: 28px;
+  line-height: 1.15;
   color: var(--hm-text-main);
-  letter-spacing: -0.04em;
 }
 
 .summaryCard span {
@@ -69,13 +76,19 @@
 }
 
 .noticeItem {
-  border-radius: 18px;
+  border-radius: var(--hm-radius);
   padding: 14px;
-  background: rgba(255, 242, 223, 0.62);
+  background: var(--hm-accent-soft);
+  border: 1px solid rgba(217, 130, 67, 0.16);
+  transition: transform var(--hm-duration-fast) var(--hm-ease-smooth);
+}
+
+.noticeItem:hover {
+  transform: translateY(-1px);
 }
 
 .noticeItem strong {
-  color: #d08a50;
+  color: var(--hm-accent);
 }
 
 .noticeItem p {

@@ -20,6 +20,7 @@ function AuthPage() {
   const password = Form.useWatch("password", form);
 
   const strength = useMemo(() => passwordStrength(password), [password]);
+  const showStrength = isRegister && Boolean(password);
 
   const onSubmit = async () => {
     const values = form.getFieldsValue();
@@ -44,13 +45,25 @@ function AuthPage() {
         });
       }
       const loginResult = await authApi.login({ account: values.account, password: values.password });
+      if (!loginResult?.token) {
+        throw new Error("登录响应缺少 token");
+      }
       actions.setToken(loginResult.token);
-      const profile = await profileApi.getProfile();
-      const user = mapProfile(profile);
+      let user = mapProfile(loginResult);
       actions.updateUser(user);
+      try {
+        const profile = await profileApi.getProfile();
+        user = mapProfile(profile);
+        actions.updateUser(user);
+      } catch (profileError) {
+        if (loginResult.profileCompleted) {
+          Toast.show({ content: profileError.message || "档案信息同步失败，已先进入首页" });
+        }
+      }
       Toast.show({ content: isRegister ? "注册成功，请完善健康档案" : "登录成功" });
       navigate(user.hasProfile ? "/dashboard" : "/profile-setup");
     } catch (error) {
+      actions.logout();
       Toast.show({ content: error.message || "登录失败" });
     } finally {
       setSubmitting(false);
@@ -62,7 +75,7 @@ function AuthPage() {
       <div className={styles.page}>
         <div className={styles.panel}>
           <h1>{isRegister ? "注册 HealthMate" : "登录 HealthMate"}</h1>
-          <p>你的健康伴侣，从今天开始科学管理。</p>
+          <p>{isRegister ? "创建账号后需要完善基础健康档案。" : "登录后进入健康记录和任务管理。"}</p>
           <Form
             form={form}
             layout="horizontal"
@@ -75,6 +88,7 @@ function AuthPage() {
             <Form.Item
               name="account"
               label={isRegister ? "账号*" : "账号"}
+              help={isRegister ? "建议使用 4-20 位字母、数字或下划线。" : ""}
               rules={[{ required: true, message: "请输入账号" }]}
             >
               <Input placeholder="请输入账号" clearable />
@@ -82,6 +96,7 @@ function AuthPage() {
             <Form.Item
               name="password"
               label={isRegister ? "密码*" : "密码"}
+              help={isRegister ? "至少 6 位，需包含字母和数字。" : ""}
               rules={[{ required: true, message: "请输入密码" }]}
             >
               <Input
@@ -97,22 +112,30 @@ function AuthPage() {
             </Form.Item>
             {isRegister && (
               <>
+                {showStrength && (
+                  <div className={styles.strengthWrap}>
+                    <div className={styles.strengthLabel}>
+                      <span>密码强度</span>
+                      <em>{["", "较弱", "一般", "良好", "较强"][strength]}</em>
+                    </div>
+                    <div className={styles.strengthTrack}>
+                      <span className={styles[`strength${strength}`]} />
+                    </div>
+                    <div className={styles.strengthTips}>
+                      <span className={/[A-Za-z]/.test(password) ? styles.tipActive : ""}>字母</span>
+                      <span className={/\d/.test(password) ? styles.tipActive : ""}>数字</span>
+                      <span className={password.length >= 8 ? styles.tipActive : ""}>8 位以上</span>
+                    </div>
+                  </div>
+                )}
                 <Form.Item
                   name="confirmPassword"
                   label="确认密码*"
+                  help="需与上方密码完全一致。"
                   rules={[{ required: true, message: "请再次输入密码" }]}
                 >
                   <Input placeholder="请再次输入密码" type={visible ? "text" : "password"} clearable />
                 </Form.Item>
-                <div className={styles.strengthWrap}>
-                  <span>密码强度</span>
-                  <div className={styles.strengthBar}>
-                    <i className={strength >= 1 ? styles.active : ""} />
-                    <i className={strength >= 2 ? styles.active : ""} />
-                    <i className={strength >= 3 ? styles.active : ""} />
-                    <i className={strength >= 4 ? styles.active : ""} />
-                  </div>
-                </div>
               </>
             )}
           </Form>

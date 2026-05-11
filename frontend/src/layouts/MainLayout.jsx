@@ -23,8 +23,9 @@ function MainLayout() {
 
   return (
     <div className={styles.layout}>
-      <div className={styles.ambientOne} />
-      <div className={styles.ambientTwo} />
+      <div className={`${styles.orb} ${styles.orb1}`} />
+      <div className={`${styles.orb} ${styles.orb2}`} />
+      <div className={`${styles.orb} ${styles.orb3}`} />
       <main className={styles.main}>
         <button className={styles.profileButton} onClick={() => navigate("/profile")} type="button">
           <h1 className={styles.brandTitle}>HealthMate</h1>

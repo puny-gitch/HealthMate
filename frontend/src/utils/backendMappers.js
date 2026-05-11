@@ -9,6 +9,8 @@ export function mapProfile(profile = {}) {
     goal: profile.healthGoal || "保持健康",
     hasProfile: Boolean(profile.profileCompleted),
     medicalHistory: profile.medicalHistory || "暂无",
+    injuryHistory: profile.injuryHistory || "",
+    allergyHistory: profile.allergyHistory || "",
     healthGoalVersion: profile.healthGoalVersion || "",
   };
 }
@@ -53,20 +55,29 @@ export function mapTrend(payload = {}) {
     intake: payload.intakeSeries || [],
     burn: payload.burnSeries || [],
     tags,
-    insight: payload.categories?.length ? "以下趋势来自后端健康记录。" : "暂无健康记录，先完成一次记录后再查看趋势。",
+    insight: payload.categories?.length ? "已汇总近期健康记录。" : "暂无健康记录，完成记录后可查看趋势。",
     notices: tags.length ? tags.slice(0, 2).map((tag) => `${tag.name} 出现 ${tag.value} 次`) : ["暂无标签分布"],
   };
 }
 
 export function mapParsedHealth(payload = {}) {
+  const preview = payload.previewData || payload;
   return {
-    sleepHours: Number(((payload.sleepMinutes || 0) / 60).toFixed(1)),
-    sleepMinutes: payload.sleepMinutes || 0,
-    intakeCalories: payload.estimatedIntakeKcal || 0,
-    exerciseCalories: payload.estimatedBurnKcal || 0,
-    tags: payload.healthTags || [],
-    nutritionDetails: payload.nutritionDetails || {},
+    parseId: payload.parseId || "",
+    warnings: payload.warnings || preview.parseWarnings || [],
+    confidenceScore: payload.confidenceScore ?? null,
+    previewData: preview,
+    rawInput: preview.rawInput || "",
+    recordedAt: preview.recordedAt || new Date().toISOString(),
+    recordDate: preview.recordDate || new Date().toISOString().slice(0, 10),
+    sleepHours: Number(((preview.sleepMinutes || 0) / 60).toFixed(1)),
+    sleepMinutes: preview.sleepMinutes || 0,
+    intakeCalories: preview.intakeCalories ?? preview.estimatedIntakeKcal ?? 0,
+    exerciseCalories: preview.exerciseCalories ?? preview.estimatedBurnKcal ?? 0,
+    tags: preview.healthTags || [],
+    nutritionDetails: preview.nutritionDetails || {},
+    exerciseDetails: preview.exerciseDetails || {},
     confidence: payload.confidence || "low",
-    note: `后端解析置信度：${payload.confidence || "low"}`,
+    note: `解析置信度：${payload.confidence || "low"}`,
   };
 }

@@ -1,22 +1,47 @@
 :root {
-  --hm-primary: #4e9e8c;
-  --hm-primary-strong: #2f7465;
-  --hm-primary-soft: #dff2ed;
-  --hm-secondary: #8fbfcc;
-  --hm-accent: #ffb46d;
-  --hm-accent-soft: #fff2df;
-  --hm-danger-soft: #ffe8e4;
-  --hm-bg: #f6fbf8;
-  --hm-bg-elevated: rgba(255, 255, 255, 0.82);
-  --hm-card: rgba(255, 255, 255, 0.92);
-  --hm-border: rgba(67, 114, 103, 0.12);
-  --hm-text-main: #1f3b35;
-  --hm-text-secondary: #5d776f;
-  --hm-text-muted: #83a098;
-  --hm-radius-sm: 14px;
-  --hm-radius: 20px;
-  --hm-radius-lg: 28px;
-  --hm-shadow: 0 18px 40px rgba(41, 82, 72, 0.08);
-  --hm-shadow-soft: 0 10px 24px rgba(31, 59, 53, 0.06);
-  --hm-content-width: 1240px;
+  --hm-primary: #2f7d6f;
+  --hm-primary-strong: #195f54;
+  --hm-primary-soft: #e5f2ef;
+  --hm-secondary: #5f7f91;
+  --hm-accent: #d98243;
+  --hm-accent-soft: #fff3e8;
+  --hm-danger-soft: #fff0ed;
+  --hm-bg: #f5f7f6;
+  --hm-bg-page: #f8faf9;
+  --hm-surface: #ffffff;
+  --hm-card: #ffffff;
+  --hm-card-muted: #f1f5f3;
+  --hm-border: rgba(35, 61, 54, 0.12);
+  --hm-border-strong: rgba(35, 61, 54, 0.2);
+  --hm-text-main: #172b26;
+  --hm-text-secondary: #5a6d67;
+  --hm-text-muted: #8a9a95;
+  --hm-radius-sm: 8px;
+  --hm-radius: 12px;
+  --hm-radius-lg: 16px;
+  --hm-shadow: 0 10px 28px rgba(21, 45, 39, 0.07);
+  --hm-shadow-soft: 0 4px 14px rgba(21, 45, 39, 0.05);
+  --hm-shadow-lift: 0 8px 30px rgba(21, 45, 39, 0.12);
+  --hm-content-width: 1120px;
+
+  /* Animation */
+  --hm-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --hm-ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --hm-ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --hm-duration-fast: 0.18s;
+  --hm-duration-base: 0.28s;
+  --hm-duration-slow: 0.45s;
+
+  /* Glow */
+  --hm-glow-primary: 0 0 0 3px rgba(47, 125, 111, 0.12);
+  --hm-glow-accent: 0 0 0 3px rgba(217, 130, 67, 0.12);
+
+  /* Glass */
+  --hm-blur-glass: saturate(180%) blur(20px);
+
+  /* Gradients */
+  --hm-gradient-hero: linear-gradient(135deg, rgba(229, 242, 239, 0.7) 0%, rgba(248, 250, 249, 0.3) 50%, rgba(255, 243, 232, 0.3) 100%);
+  --hm-gradient-orb-1: radial-gradient(circle at 40% 50%, rgba(47, 125, 111, 0.15) 0%, transparent 60%);
+  --hm-gradient-orb-2: radial-gradient(circle at 60% 40%, rgba(95, 127, 145, 0.12) 0%, transparent 55%);
+  --hm-gradient-orb-3: radial-gradient(circle at 50% 60%, rgba(217, 130, 67, 0.1) 0%, transparent 50%);
 }

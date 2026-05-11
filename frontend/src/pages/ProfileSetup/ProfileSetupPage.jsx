@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Button, Form, Input, Radio, TextArea, Toast } from "antd-mobile";
+import { Button, Form, Input, Selector, TextArea, Toast } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/common/PageHeader";
 import PageTransition from "../../components/common/PageTransition";
@@ -9,6 +9,11 @@ import { mapProfile } from "../../utils/backendMappers";
 import styles from "./ProfileSetupPage.module.css";
 
 const goals = ["减脂", "增肌", "改善睡眠", "保持健康"];
+const genderOptions = [
+  { label: "男", value: 1 },
+  { label: "女", value: 2 },
+];
+const goalOptions = goals.map((goal) => ({ label: goal, value: goal }));
 
 function ProfileSetupPage() {
   const [form] = Form.useForm();
@@ -21,27 +26,21 @@ function ProfileSetupPage() {
   const [saving, setSaving] = useState(false);
 
   const canSubmit = useMemo(
-    () => values?.gender != null && Boolean(values?.height && values?.weight && values?.goal),
+    () => values?.gender?.[0] != null && Boolean(values?.height && values?.weight && values?.goal?.[0]),
     [values],
   );
 
   const handleSave = async () => {
     const formValues = form.getFieldsValue();
-    const medicalHistory = [
-      formValues.injuryHistory ? `伤病史：${formValues.injuryHistory}` : "",
-      formValues.allergyHistory ? `过敏史：${formValues.allergyHistory}` : "",
-    ]
-      .filter(Boolean)
-      .join("；");
-
     try {
       setSaving(true);
       const profile = await profileApi.saveProfile({
-        gender: Number(formValues.gender),
+        gender: Number(formValues.gender?.[0]),
         height: Number(formValues.height),
         weight: Number(formValues.weight),
-        healthGoal: formValues.goal,
-        medicalHistory: medicalHistory || "无",
+        healthGoal: formValues.goal?.[0],
+        injuryHistory: formValues.injuryHistory || "无",
+        allergyHistory: formValues.allergyHistory || "无",
       });
       actions.updateUser(mapProfile(profile));
       Toast.show({ content: "档案保存成功" });
@@ -56,52 +55,73 @@ function ProfileSetupPage() {
   return (
     <PageTransition>
       <div className={styles.page}>
-        <PageHeader title="基础健康档案" />
-        <Form
-          form={form}
-          initialValues={{
-            gender: user.gender,
-            height: user.height,
-            weight: user.weight,
-            goal: user.goal,
-            injuryHistory: user.medicalHistory === "暂无" ? "" : user.medicalHistory,
-          }}
-          layout="horizontal"
-          className={styles.form}
-          footer={
-            <Button color="primary" block loading={saving} disabled={!canSubmit} onClick={handleSave}>
-              保存档案
-            </Button>
-          }
-        >
-          <Form.Item name="gender" label="性别*" rules={[{ required: true, message: "请选择性别" }]}>
-            <Radio.Group>
-              <Radio value={1}>男</Radio>
-              <Radio value={2}>女</Radio>
-            </Radio.Group>
-          </Form.Item>
-          <Form.Item name="height" label="身高*" rules={[{ required: true, message: "请输入身高" }]}>
-            <Input type="number" placeholder="请输入身高（cm）" clearable />
-          </Form.Item>
-          <Form.Item name="weight" label="体重*" rules={[{ required: true, message: "请输入体重" }]}>
-            <Input type="number" placeholder="请输入体重（kg）" clearable />
-          </Form.Item>
-          <Form.Item name="goal" label="健康目标*" rules={[{ required: true, message: "请选择目标" }]}>
-            <Radio.Group className={styles.goalGroup}>
-              {goals.map((goal) => (
-                <Radio key={goal} value={goal}>
-                  {goal}
-                </Radio>
-              ))}
-            </Radio.Group>
-          </Form.Item>
-          <Form.Item name="injuryHistory" label="伤病史">
-            <TextArea placeholder="如有请填写，便于生成更准确建议" autoSize={{ minRows: 2, maxRows: 4 }} />
-          </Form.Item>
-          <Form.Item name="allergyHistory" label="过敏史">
-            <TextArea placeholder="如有请填写过敏源或反应情况" autoSize={{ minRows: 2, maxRows: 4 }} />
-          </Form.Item>
-        </Form>
+        <div className={styles.hero}>
+          <PageHeader title="基础健康档案" />
+          <div className={styles.heroBody}>
+            <div>
+              <span className="hm-page-eyebrow">Profile Setup</span>
+              <h1>完善健康基础信息</h1>
+              <p>这些信息会用于记录解析、趋势统计和候选任务生成。</p>
+            </div>
+            <div className={styles.heroMeta}>
+              <strong>{user.goal || "保持健康"}</strong>
+              <span>当前目标</span>
+            </div>
+          </div>
+        </div>
+
+        <section className={styles.formShell}>
+          <Form
+            form={form}
+            initialValues={{
+              gender: user.gender != null ? [user.gender] : [],
+              height: user.height,
+              weight: user.weight,
+              goal: user.goal ? [user.goal] : [],
+              injuryHistory: user.injuryHistory || "",
+              allergyHistory: user.allergyHistory || "",
+            }}
+            layout="horizontal"
+            className={styles.form}
+            footer={
+              <Button color="primary" block loading={saving} disabled={!canSubmit} onClick={handleSave}>
+                保存档案
+              </Button>
+            }
+          >
+            <div className={styles.formSection}>
+              <h2>基础数据</h2>
+              <Form.Item name="gender" label="性别*" rules={[{ required: true, message: "请选择性别" }]}>
+                <Selector options={genderOptions} columns={2} />
+              </Form.Item>
+              <div className={styles.inlineFields}>
+                <Form.Item name="height" label="身高*" rules={[{ required: true, message: "请输入身高" }]}>
+                  <Input type="number" placeholder="cm" clearable />
+                </Form.Item>
+                <Form.Item name="weight" label="体重*" rules={[{ required: true, message: "请输入体重" }]}>
+                  <Input type="number" placeholder="kg" clearable />
+                </Form.Item>
+              </div>
+            </div>
+
+            <div className={styles.formSection}>
+              <h2>健康目标</h2>
+              <Form.Item name="goal" label="目标*" rules={[{ required: true, message: "请选择目标" }]}>
+                <Selector options={goalOptions} columns={2} />
+              </Form.Item>
+            </div>
+
+            <div className={styles.formSection}>
+              <h2>健康备注</h2>
+              <Form.Item name="injuryHistory" label="伤病史">
+                <TextArea placeholder="如：膝盖偶尔不适" autoSize={{ minRows: 2, maxRows: 4 }} />
+              </Form.Item>
+              <Form.Item name="allergyHistory" label="过敏史">
+                <TextArea placeholder="如：无明确食物过敏" autoSize={{ minRows: 2, maxRows: 4 }} />
+              </Form.Item>
+            </div>
+          </Form>
+        </section>
       </div>
     </PageTransition>
   );

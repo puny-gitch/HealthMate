@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Selector, Toast } from "antd-mobile";
 import AppCard from "../../components/common/AppCard";
+import AnimatedCounter from "../../components/common/AnimatedCounter";
 import EChartPanel from "../../components/charts/EChartPanel";
 import PageTransition from "../../components/common/PageTransition";
+import StaggerList from "../../components/common/StaggerList";
 import { useAppStore } from "../../store/AppStore";
 import { healthApi } from "../../services/api";
 import { mapTrend } from "../../utils/backendMappers";
@@ -35,21 +37,21 @@ function TrendsPage() {
     };
   }, [actions, dimension]);
 
-  const currentMetrics = metrics[dimension];
+  const currentMetrics = metrics[dimension] || metrics.week;
   const sleepAverage = useMemo(() => {
-    if (!currentMetrics.sleep.length) return "0.0";
+    if (!currentMetrics.sleep.length) return 0;
     const total = currentMetrics.sleep.reduce((sum, value) => sum + value, 0);
-    return (total / currentMetrics.sleep.length).toFixed(1);
+    return total / currentMetrics.sleep.length;
   }, [currentMetrics]);
   const intakeAverage = useMemo(() => {
     if (!currentMetrics.intake.length) return 0;
     const total = currentMetrics.intake.reduce((sum, value) => sum + value, 0);
-    return Math.round(total / currentMetrics.intake.length);
+    return total / currentMetrics.intake.length;
   }, [currentMetrics]);
   const burnAverage = useMemo(() => {
     if (!currentMetrics.burn.length) return 0;
     const total = currentMetrics.burn.reduce((sum, value) => sum + value, 0);
-    return Math.round(total / currentMetrics.burn.length);
+    return total / currentMetrics.burn.length;
   }, [currentMetrics]);
 
   const handleExport = async () => {
@@ -100,22 +102,35 @@ function TrendsPage() {
           <div className={styles.heroTop}>
             <div>
               <span className="hm-page-eyebrow">数据复盘</span>
-              <h1>别把数据当成绩单，把它当提醒就够了</h1>
+              <h1>健康数据趋势</h1>
               <p>{currentMetrics.insight}</p>
             </div>
-            <Selector options={dimensionOptions} value={[dimension]} onChange={(value) => setDimension(value[0])} columns={2} />
+            <Selector
+              options={dimensionOptions}
+              value={[dimension]}
+              onChange={(value) => {
+                if (value[0]) setDimension(value[0]);
+              }}
+              columns={2}
+            />
           </div>
           <div className={styles.summaryGrid}>
             <div className={styles.summaryCard}>
-              <strong>{sleepAverage}h</strong>
+              <strong>
+                <AnimatedCounter to={Number(sleepAverage)} suffix="h" decimal={1} duration={0.8} />
+              </strong>
               <span>平均睡眠</span>
             </div>
             <div className={styles.summaryCard}>
-              <strong>{intakeAverage} kcal</strong>
+              <strong>
+                <AnimatedCounter to={Math.round(intakeAverage)} suffix=" kcal" duration={0.8} />
+              </strong>
               <span>平均摄入</span>
             </div>
             <div className={styles.summaryCard}>
-              <strong>{burnAverage} kcal</strong>
+              <strong>
+                <AnimatedCounter to={Math.round(burnAverage)} suffix=" kcal" duration={0.8} />
+              </strong>
               <span>平均消耗</span>
             </div>
           </div>
@@ -135,16 +150,16 @@ function TrendsPage() {
             <EChartPanel option={pieOption} height={240} />
           </AppCard>
 
-          <AppCard title="温柔提醒">
-            <div className={styles.noticeList}>
+          <AppCard title="数据提示">
+            <StaggerList className={styles.noticeList}>
               {currentMetrics.notices.map((notice) => (
                 <article key={notice} className={styles.noticeItem}>
                   <strong>提醒</strong>
                   <p>{notice}</p>
                 </article>
               ))}
-            </div>
-            <Button fill="outline" size="small" onClick={handleExport}>
+            </StaggerList>
+            <Button className="hm-ghost-action" fill="outline" size="small" onClick={handleExport}>
               导出数据
             </Button>
           </AppCard>
