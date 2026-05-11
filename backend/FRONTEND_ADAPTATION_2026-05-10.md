@@ -127,6 +127,69 @@ POST /api/health/record/confirm
 - Dashboard/Trends 后端已按天聚合多条记录。
 - 如果页面展示“今日记录”，应使用记录列表，而不是单条对象。
 
+### 健康记录历史与删除
+
+新增接口：
+
+```text
+GET /api/health/record/history
+```
+
+返回当前登录用户保存过的全部健康记录，按 `recordedAt` 倒序排列：
+
+```json
+{
+  "code": 0,
+  "message": "查询成功",
+  "data": {
+    "records": [
+      {
+        "recordId": 12,
+        "recordDate": "2026-05-12",
+        "recordedAt": "2026-05-12T20:30:00",
+        "recordType": "mixed",
+        "rawInput": "中午吃了鸡胸肉沙拉，晚上跑步30分钟",
+        "sleepMinutes": null,
+        "estimatedIntakeKcal": 480,
+        "estimatedBurnKcal": 220,
+        "nutritionDetails": {},
+        "exerciseDetails": {},
+        "healthTags": ["有氧训练"],
+        "confidence": "medium",
+        "parseWarnings": [],
+        "updatedAt": "2026-05-12T20:31:00"
+      }
+    ],
+    "total": 1
+  }
+}
+```
+
+删除接口：
+
+```text
+DELETE /api/health/record/{recordId}
+```
+
+返回：
+
+```json
+{
+  "code": 0,
+  "message": "删除成功",
+  "data": {
+    "recordId": 12
+  }
+}
+```
+
+前端适配：
+
+- 做一个健康记录历史列表，展示 `rawInput`、结构化字段、时间、可信度和警告。
+- 删除前建议二次确认，提示“删除后将不再参与趋势、建议和任务生成”。
+- 删除成功后刷新历史列表、Dashboard、Trends，以及后续建议/任务生成所依赖的数据。
+- 删除只能删除当前登录用户自己的记录；如果后端返回 `40430`，提示记录不存在或无权删除。
+
 ## 3. AI 建议不再自动生成任务
 
 `GET /api/advice/stream?token=...` 现在只输出建议并保存建议历史，不再自动写入今日任务。

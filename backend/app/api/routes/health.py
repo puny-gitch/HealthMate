@@ -258,6 +258,36 @@ def get_recent_records(
     return api_success({"records": [_serialize_record(record) for record in records]}, "查询成功")
 
 
+@router.get("/record/history")
+def get_record_history(
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    records = health_repository.list_all(db, user_id)
+    return api_success(
+        {
+            "records": [_serialize_record(record) for record in records],
+            "total": len(records),
+        },
+        "查询成功",
+    )
+
+
+@router.delete("/record/{record_id}")
+def delete_health_record(
+    record_id: int,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    record = health_repository.get_by_id(db, user_id, record_id)
+    if not record:
+        raise AppException("健康记录不存在或无权删除", code=40430, status_code=404)
+    deleted = health_repository.delete_by_id(db, user_id, record_id)
+    if not deleted:
+        raise AppException("健康记录删除失败", code=50030, status_code=500)
+    return api_success({"recordId": record_id}, "删除成功")
+
+
 @router.get("/export")
 def export_data(
     startDate: date | None = Query(default=None),
