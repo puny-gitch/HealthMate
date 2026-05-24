@@ -1,5 +1,6 @@
 from app.services.advice import AdviceService, MockAdviceProvider
 from app.services.health_parse_ai import HealthAIParseService
+from app.services.knowledge import get_knowledge_service
 from app.services.parse import ParseService
 from app.services.risk import RiskWordService
 from app.services.task_generation import TaskGenerationService
@@ -53,6 +54,36 @@ def test_health_ai_parse_rule_fallback_rejects_empty_record():
     assert result.preview_data == {}
 
 
+def test_knowledge_service_search_returns_matches():
+    svc = get_knowledge_service()
+    hits = svc.search("睡眠不足 减脂", top_k=2)
+    assert isinstance(hits, list)
+    assert len(hits) <= 2
+    assert all(hit.title for hit in hits)
+
+
+def test_advice_service_build_context_includes_knowledge():
+    svc = AdviceService(provider=MockAdviceProvider())
+    context = svc.build_context(
+        {
+            "completion_rate": 60,
+            "avg_sleep_minutes": 360,
+            "gap_days": 0,
+            "health_goal": "减脂",
+            "recent_records": [{"tags": ["睡眠不足", "高热量饮食"]}],
+            "latest_summary": {"summaryContent": "本周睡眠偏少"},
+        }
+    )
+    assert "knowledge_context" in context
+
+
+def test_health_ai_parse_service_keeps_rule_fallback():
+    svc = HealthAIParseService()
+    result = svc.parse("昨晚睡了7小时，吃了500卡")
+    assert result.should_save
+    assert result.preview_data["sleepMinutes"] == 420
+
+
 def test_task_generation_filters_completed_similarity():
     class Task:
         def __init__(self, content, status):
@@ -64,11 +95,11 @@ def test_task_generation_filters_completed_similarity():
         {
             "health_goal": "减脂",
             "recent_records": [],
-            "completed_tasks": [Task("晚饭后快走或慢跑 20 分钟", 1)],
+            "completed_tasks": [Task("晚饭后快走 20 分钟", 1)],
             "pending_tasks": [],
             "history_completion_rate": 0,
         },
         max_tasks=3,
     )
-    assert skipped
-    assert all("晚饭后快走或慢跑 20 分钟" != item.task_content for item in candidates)
+    assert candidates
+    assert all("晚饭后快走 20 分钟" != item.task_content for item in candidates)

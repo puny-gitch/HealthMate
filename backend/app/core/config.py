@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     llm_api_key: str | None = None
     llm_model: str = "deepseek-chat"
     llm_timeout_seconds: float = 5.0
+    knowledge_enabled: bool = True
+    knowledge_dir: str = "app/data/knowledge"
+    knowledge_top_k: int = 3
+    knowledge_embedding_model: str = "BAAI/bge-small-zh-v1.5"
     redis_url: str | None = None
     cache_ttl_seconds: int = 604800
 

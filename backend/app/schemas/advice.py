@@ -18,4 +18,5 @@ class AdviceTaskItem(BaseModel):
 class AdviceResult(BaseModel):
     adviceText: str
     tasks: list[dict]
+    knowledgeContext: str | None = None
 

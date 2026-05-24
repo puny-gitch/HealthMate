@@ -9,6 +9,7 @@ from uuid import uuid4
 import httpx
 
 from app.core.config import get_settings
+from app.services.knowledge import get_knowledge_service
 from app.services.parse import ParseService
 
 
@@ -27,6 +28,7 @@ class HealthParsePreview:
 class HealthAIParseService:
     def __init__(self, fallback: ParseService | None = None):
         self.fallback = fallback or ParseService()
+        self.knowledge_service = get_knowledge_service()
 
     def parse(self, raw_input: str, recorded_at: datetime | None = None, record_date: date | None = None) -> HealthParsePreview:
         settings = get_settings()
@@ -40,6 +42,12 @@ class HealthAIParseService:
 
     def _parse_with_llm(self, raw_input: str, recorded_at: datetime | None, record_date: date | None) -> dict:
         settings = get_settings()
+        query = " ".join(self.knowledge_service.keywords(raw_input))
+        knowledge_context = (
+            self.knowledge_service.render_context(query or raw_input, top_k=3)
+            if settings.knowledge_enabled
+            else ""
+        )
         response = httpx.post(
             self._chat_completions_url(settings.llm_api_base or ""),
             headers={
@@ -49,15 +57,17 @@ class HealthAIParseService:
             json={
                 "model": settings.llm_model,
                 "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "你是健康记录结构化解析器，只输出 JSON。"
-                            "你的目标是把用户原始输入解析成 t_health_record 可落库字段。"
-                            "如果没有明确睡眠、饮食、运动、热量、标签等有效信息，shouldSave=false，previewData={}，并给出失败原因和优化建议。"
-                            "不要输出诊断或医疗建议；涉及病痛症状应标注不可保存。"
-                        ),
-                    },
+                        {
+                            "role": "system",
+                            "content": (
+                                "你是健康记录结构化解析器，只输出 JSON。"
+                                "你的目标是把用户原始输入解析成 t_health_record 可落库字段。"
+                                "如果没有明确睡眠、饮食、运动、热量、标签等有效信息，shouldSave=false，previewData={}，并给出失败原因和优化建议。"
+                                "不要输出诊断或医疗建议；涉及病痛症状应标注不可保存。"
+                                "以下是与本次输入相关的健康知识，仅用于辅助判断，不要原样复述："
+                                f"\n{knowledge_context or '无'}"
+                            ),
+                        },
                     {
                         "role": "user",
                         "content": (
@@ -93,7 +103,9 @@ class HealthAIParseService:
         )
         response.raise_for_status()
         content = response.json()["choices"][0]["message"]["content"]
-        return json.loads(content)
+        payload = json.loads(content)
+        payload["knowledgeContext"] = knowledge_context
+        return payload
 
     def _parse_with_rules(
         self,

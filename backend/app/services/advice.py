@@ -6,12 +6,14 @@ from typing import Protocol
 import httpx
 
 from app.core.config import get_settings
+from app.services.knowledge import get_knowledge_service
 
 
 @dataclass
 class AdviceResult:
     advice_text: str
     tasks: list[dict]
+    knowledge_context: str | None = None
 
 
 class IAdviceProvider(Protocol):
@@ -32,6 +34,7 @@ class MockAdviceProvider:
                 tasks=[
                     {"taskContent": "记录今天的一餐和睡眠计划", "aiReason": "先恢复记录节奏比追求强度更重要"},
                 ],
+                knowledge_context=context.get("knowledge_context"),
             )
 
         if completion_rate >= 80:
@@ -120,7 +123,7 @@ class LLMAdviceProvider:
         ][:3]
         if not advice_text or not tasks:
             return self.fallback.generate(context)
-        return AdviceResult(advice_text=advice_text, tasks=tasks)
+        return AdviceResult(advice_text=advice_text, tasks=tasks, knowledge_context=context.get("knowledge_context"))
 
     def _chat_completions_url(self, api_base: str) -> str:
         base = api_base.rstrip("/")
@@ -132,8 +135,22 @@ class LLMAdviceProvider:
 class AdviceService:
     def __init__(self, provider: IAdviceProvider):
         self.provider = provider
+        self.knowledge_service = get_knowledge_service()
 
     def build_context(self, metrics: dict) -> dict:
+        settings = get_settings()
+        query_parts = []
+        query_parts.extend(metrics.get("health_tags") or [])
+        if metrics.get("health_goal"):
+            query_parts.append(str(metrics["health_goal"]))
+        latest_summary = metrics.get("latest_summary") or {}
+        if latest_summary.get("summaryContent"):
+            query_parts.append(str(latest_summary["summaryContent"]))
+        recent_records = metrics.get("recent_records") or []
+        for record in recent_records[:3]:
+            query_parts.extend(record.get("tags") or [])
+        query = " ".join(part for part in query_parts if part)
+        knowledge_context = self.knowledge_service.render_context(query, top_k=3) if settings.knowledge_enabled else ""
         return {
             "date": str(date.today()),
             "completion_rate": metrics.get("completion_rate", 0),
@@ -144,6 +161,7 @@ class AdviceService:
             "medical_history": metrics.get("medical_history"),
             "recent_records": metrics.get("recent_records", []),
             "latest_summary": metrics.get("latest_summary"),
+            "knowledge_context": knowledge_context,
         }
 
     def generate_daily(self, metrics: dict) -> AdviceResult:
