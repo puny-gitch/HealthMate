@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     knowledge_dir: str = "app/data/knowledge"
     knowledge_top_k: int = 3
     knowledge_embedding_model: str = "BAAI/bge-small-zh-v1.5"
+    embedding_model: str = "BAAI/bge-small-zh-v1.5"
+    qdrant_url: str | None = None
+    qdrant_api_key: str | None = None
+    qdrant_knowledge_collection: str = "health_knowledge"
+    qdrant_memory_collection: str = "user_health_memory"
     redis_url: str | None = None
     cache_ttl_seconds: int = 604800
 

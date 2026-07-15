@@ -150,7 +150,13 @@ class AdviceService:
         for record in recent_records[:3]:
             query_parts.extend(record.get("tags") or [])
         query = " ".join(part for part in query_parts if part)
-        knowledge_context = self.knowledge_service.render_context(query, top_k=3) if settings.knowledge_enabled else ""
+        knowledge_context = (
+            metrics.get("knowledge_context")
+            if metrics.get("knowledge_context") is not None
+            else self.knowledge_service.render_context(query, top_k=3)
+            if settings.knowledge_enabled
+            else ""
+        )
         return {
             "date": str(date.today()),
             "completion_rate": metrics.get("completion_rate", 0),

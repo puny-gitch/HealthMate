@@ -35,6 +35,9 @@ class KnowledgeService:
         self._chunks = self._load_chunks()
         self._embeddings = self._build_embeddings(self._chunks)
 
+    def chunks(self) -> list[KnowledgeChunk]:
+        return list(self._chunks)
+
     def search(self, query: str, top_k: int | None = None) -> list[KnowledgeHit]:
         query = (query or "").strip()
         if not query or not self._chunks:

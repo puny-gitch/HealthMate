@@ -3,6 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.agents import HealthAgentService
 from app.api.deps import get_current_user_id
 from app.core.exceptions import AppException
 from app.core.response import api_success
@@ -25,6 +26,7 @@ advice_repository = AdviceRepository()
 summary_repository = SummaryRepository()
 task_service = TaskService()
 task_generation_service = TaskGenerationService()
+health_agent_service = HealthAgentService()
 
 
 @router.post("/check")
@@ -110,36 +112,14 @@ def generate_task_preview(
     db: Session = Depends(get_db),
 ):
     target_date = payload.targetDate or date.today()
-    user = user_repository.get_by_id(db, user_id)
-    health_records = health_repository.list_all(db, user_id)
-    today_tasks = task_repository.list_by_date(db, user_id, target_date)
-    history_tasks = task_repository.list_by_date(db, user_id)
-    latest_advice = advice_repository.get_latest(db, user_id)
-    latest_summary = summary_repository.get_latest(db, user_id, "week")
-    context = task_generation_service.build_context(
-        user=user,
-        health_records=health_records,
-        today_tasks=today_tasks,
-        history_tasks=history_tasks,
-        latest_advice=latest_advice,
-        latest_summary=latest_summary,
-        target_date=target_date,
-    )
-    candidates, skipped = task_generation_service.generate_candidates(context, payload.maxTasks)
+    agent_result = health_agent_service.generate_task_preview(db, user_id, target_date, payload.maxTasks)
     return api_success(
         {
+            "runId": agent_result["runId"],
             "targetDate": target_date.isoformat(),
-            "candidates": [
-                {
-                    "draftId": item.draft_id,
-                    "taskContent": item.task_content,
-                    "aiReason": item.ai_reason,
-                    "difficulty": item.difficulty,
-                    "similarityWarning": item.similarity_warning,
-                }
-                for item in candidates
-            ],
-            "skippedReasons": skipped,
+            "candidates": agent_result["candidates"],
+            "skippedReasons": agent_result["skippedReasons"],
+            "warnings": agent_result["warnings"],
         },
         "候选任务生成成功",
     )

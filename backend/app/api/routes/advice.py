@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from app.agents import HealthAgentService
 from app.api.deps import get_current_user_id, get_current_user_id_from_header_or_query
 from app.core.config import get_settings
 from app.core.response import api_success
@@ -29,6 +30,7 @@ summary_repository = SummaryRepository()
 user_repository = UserRepository()
 task_service = TaskService()
 cache_service = CacheService()
+health_agent_service = HealthAgentService()
 
 
 def get_advice_service() -> AdviceService:
@@ -114,22 +116,14 @@ def advice_history(
 
 
 def build_advice_stream_response(user_id: int, db: Session, force: bool = False) -> StreamingResponse:
-    cache_key = f"advice:daily:{user_id}:{date.today().isoformat()}"
-    cached = None if force else cache_service.get_json(cache_key)
-    if cached:
-        result = _result_from_cache_payload(cached)
-    else:
-        metrics = _build_metrics(db, user_id)
-        result = get_advice_service().generate_daily(metrics)
-        cache_service.set_json(cache_key, _result_to_cache_payload(result))
-        advice = AdviceHistory(user_id=user_id, advice_text=result.advice_text)
-        advice_repository.create(db, advice)
+    agent_result = health_agent_service.generate_daily_advice(db, user_id, force=force)
+    result = agent_result["advice"]
 
     async def event_generator():
         for chunk in result.advice_text:
             yield f"event: message\ndata: {chunk}\n\n"
             await asyncio.sleep(0.01)
-        yield f"event: advice\ndata: {json.dumps({'adviceText': result.advice_text}, ensure_ascii=False)}\n\n"
+        yield f"event: advice\ndata: {json.dumps({'adviceText': result.advice_text, 'runId': agent_result['runId'], 'fromCache': agent_result['fromCache']}, ensure_ascii=False)}\n\n"
         yield "event: done\ndata: [DONE]\n\n"
 
     return StreamingResponse(
